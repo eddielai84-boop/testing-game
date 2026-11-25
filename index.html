@@ -1,0 +1,3621 @@
+我为你重新构建了一个全面升级的互动版本 《小小蝴蝶：我的成长轨迹》，保留了原图日系治愈系的温暖基调与核心结构，并在此基础上做了多项深度增强：
+
+相比参考版本的升级亮点
+
+1.  动态日系治愈风场景插画（全 10 幕独立绘制 +
+    性别/年龄实时联动）：无需外部图片资源，每一幕都内置了专属光影插画（清晨教室、阁楼铜闹钟、退潮海岸、夕阳跑道、骤雨公交站、星光书桌等）；切换「我是女生
+    / 我是男生」时，封面与 10 幕故事里的主角形象都会同步变化，且服饰会随着 10 岁到 26 岁的成长悄然变化。
+2.  蝴蝶轻语即时回响 +
+    随机「温柔巧合」事件：每次选择不再只是生硬跳页，而是会浮现细腻的「蝴蝶轻语」剧情反馈并埋下专属记忆种子；旅途中还会随机触发「窗前飞过的小蝴蝶」治愈彩蛋。
+3.  内置 Web Audio 治愈系钢琴/八音盒配乐与音效：纯代码实时合成舒缓的五声音阶背景音乐及轻柔按键/翻页/结局音效，点开即可聆听，随时可开关。
+4.  增强版 26 岁成长轨迹报告：新增 四维能量雷达图、带有时间轴连线的 蝴蝶效应因果回溯图（精准串联你本局的真实抉择），并支持
+    一键生成高清「成长明信片」PNG 下载保存。
+5.  完整的 10 大结局图鉴与本地存档：内置 10 种截然不同的 26 岁人生结局、专属徽章与解锁线索，localStorage
+    自动保存收集进度，支持键盘快捷键（Enter/Space、1-4/A-D）流畅体验。
+
+将下方完整代码保存为 little-butterfly.html，用浏览器打开即可直接游玩：
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>小小蝴蝶：我的成长轨迹 · 10岁到26岁日系治愈系成长互动故事</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-warm: #fff8f0;
+    --bg-sky: #eef5ff;
+    --surface: rgba(255, 253, 250, 0.92);
+    --surface-solid: #fffdfa;
+    --border-soft: rgba(226, 207, 189, 0.72);
+    --text-main: #2d2622;
+    --text-sub: #6d6159;
+    --text-muted: #988b81;
+    --accent: #e56a46;
+    --accent-hover: #d45733;
+    --accent-soft: #fff0e9;
+    --gold: #d98324;
+    --gold-soft: #fff8e7;
+    --blue: #3b76f6;
+    --coral: #e76755;
+    --amber: #ea9a28;
+    --jade: #1e9c7a;
+    --shadow-card: 0 18px 46px -14px rgba(154, 112, 74, 0.16), 0 4px 12px -4px rgba(154, 112, 74, 0.08);
+    --shadow-btn: 0 10px 24px -8px rgba(229, 106, 70, 0.48);
+    --radius-xl: 26px;
+    --radius-lg: 18px;
+    --radius-md: 14px;
+    --font-sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --font-serif: "Noto Serif SC", "Songti SC", Georgia, serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    min-height: 100%;
+    font-family: var(--font-sans);
+    color: var(--text-main);
+    background: linear-gradient(135deg, #fff5ea 0%, #fffcf7 48%, #edf5ff 100%);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    transition: background 1s ease;
+  }
+
+  body.mood-morning { background: linear-gradient(135deg, #fff4e6 0%, #fffbf5 50%, #eef6ff 100%); }
+  body.mood-noon { background: linear-gradient(135deg, #fff8ea 0%, #f8fcff 55%, #e8f3ff 100%); }
+  body.mood-sunset { background: linear-gradient(135deg, #ffefe2 0%, #fff6ec 50%, #f5ecff 100%); }
+  body.mood-rain { background: linear-gradient(135deg, #eef3fa 0%, #f7f9fc 50%, #edf1f8 100%); }
+  body.mood-night { background: linear-gradient(135deg, #f2f1fa 0%, #faf8fd 52%, #eef4fc 100%); }
+  body.mood-sakura { background: linear-gradient(135deg, #fff2f4 0%, #fffaf5 50%, #eef5ff 100%); }
+
+  /* Ambient Canvas for petals & glowing butterflies */
+  #ambient-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .app-root {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Buttons & Pills */
+  .pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(255, 253, 250, 0.9);
+    border: 1px solid var(--border-soft);
+    color: var(--text-main);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(130, 95, 65, 0.08);
+    backdrop-filter: blur(8px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    font-family: inherit;
+  }
+
+  .pill-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(229, 106, 70, 0.45);
+    box-shadow: 0 8px 20px rgba(130, 95, 65, 0.13);
+    background: #fff;
+  }
+
+  .pill-btn.icon-only {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .pill-btn .accent-num {
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  .pill-btn.audio-on {
+    color: #168265;
+  }
+
+  .primary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #eb734e 0%, #df5e39 100%);
+    color: #fff;
+    font-size: 16.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--shadow-btn);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    font-family: inherit;
+  }
+
+  .primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px -8px rgba(229, 106, 70, 0.58);
+    filter: brightness(1.03);
+  }
+
+  .primary-btn:active {
+    transform: translateY(0);
+  }
+
+  .secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 22px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid var(--border-soft);
+    color: var(--text-main);
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+
+  .secondary-btn:hover {
+    border-color: var(--gold);
+    background: var(--gold-soft);
+    transform: translateY(-1px);
+  }
+
+  /* ==================== LANDING VIEW ==================== */
+  .landing-view {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .landing-bg-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+
+  .landing-bg-art svg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .landing-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(95deg,
+      rgba(255, 250, 244, 0.94) 0%,
+      rgba(255, 249, 242, 0.88) 38%,
+      rgba(255, 250, 244, 0.45) 60%,
+      rgba(255, 250, 244, 0.04) 84%
+    );
+    z-index: 1;
+  }
+
+  .landing-topbar {
+    position: absolute;
+    top: 24px;
+    right: 32px;
+    display: flex;
+    gap: 12px;
+    z-index: 5;
+  }
+
+  .landing-content {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 84px 48px 56px;
+    display: grid;
+    grid-template-columns: minmax(0, 560px) 1fr;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.04em;
+    margin-bottom: 14px;
+  }
+
+  .hero-title {
+    font-size: clamp(38px, 4.6vw, 56px);
+    line-height: 1.18;
+    font-weight: 800;
+    color: #25201d;
+    letter-spacing: -0.02em;
+    margin-bottom: 22px;
+  }
+
+  .hero-desc {
+    font-size: 16px;
+    line-height: 1.82;
+    color: #4a413b;
+    margin-bottom: 14px;
+    max-width: 500px;
+  }
+
+  .hero-subdesc {
+    font-size: 14px;
+    line-height: 1.75;
+    color: #7c6f66;
+    margin-bottom: 28px;
+    max-width: 490px;
+  }
+
+  .gender-section-label {
+    font-size: 13px;
+    color: #6b5f57;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .gender-switch {
+    display: inline-flex;
+    padding: 5px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--border-soft);
+    box-shadow: 0 6px 18px rgba(154, 112, 74, 0.08);
+    margin-bottom: 24px;
+    gap: 4px;
+  }
+
+  .gender-btn {
+    border: none;
+    background: transparent;
+    padding: 10px 22px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #5c514a;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .gender-btn.active {
+    background: linear-gradient(135deg, #eb734e 0%, #df5e39 100%);
+    color: #fff;
+    box-shadow: 0 6px 16px -4px rgba(229, 106, 70, 0.45);
+  }
+
+  .hero-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 38px;
+  }
+
+  .hero-footer-hint {
+    font-size: 13px;
+    color: #7e726a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .kbd-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(198, 180, 162, 0.7);
+    color: #5c5048;
+  }
+
+  /* ==================== STORY VIEW ==================== */
+  .story-view {
+    width: 100%;
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 22px 24px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-height: 100vh;
+  }
+
+  .story-topbar {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    box-shadow: 0 10px 28px -12px rgba(154, 112, 74, 0.14);
+    backdrop-filter: blur(10px);
+  }
+
+  .topbar-stage {
+    min-width: 210px;
+  }
+
+  .topbar-meta {
+    font-size: 12.5px;
+    color: var(--text-sub);
+    margin-bottom: 2px;
+  }
+
+  .topbar-age {
+    font-size: 21px;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .progress-wrap {
+    flex: 1;
+    max-width: 390px;
+  }
+
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-sub);
+    margin-bottom: 7px;
+  }
+
+  .progress-track {
+    position: relative;
+    height: 9px;
+    border-radius: 999px;
+    background: #efe6db;
+    overflow: visible;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #f3a435 0%, #eb7046 100%);
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+  }
+
+  .progress-butterfly {
+    position: absolute;
+    right: -11px;
+    top: 50%;
+    transform: translateY(-54%);
+    font-size: 16px;
+    filter: drop-shadow(0 2px 4px rgba(235, 112, 70, 0.4));
+    animation: flutterBob 2.2s ease-in-out infinite;
+  }
+
+  @keyframes flutterBob {
+    0%, 100% { transform: translateY(-54%) rotate(-6deg) scale(1); }
+    50% { transform: translateY(-68%) rotate(6deg) scale(1.1); }
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .story-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-xl);
+    padding: 30px;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(10px);
+    display: grid;
+    grid-template-columns: 1.03fr 0.97fr;
+    gap: 32px;
+    align-items: start;
+    animation: cardEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes cardEnter {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .scene-illustration-box {
+    width: 100%;
+    aspect-ratio: 16 / 11;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 12px 30px -12px rgba(96, 68, 43, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    margin-bottom: 20px;
+    background: #f5ebe0;
+  }
+
+  .scene-illustration-box svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .scene-age-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+
+  .scene-title {
+    font-size: 25px;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.3;
+    margin-bottom: 14px;
+    font-family: var(--font-serif);
+  }
+
+  .scene-narrative {
+    font-size: 15.5px;
+    line-height: 1.88;
+    color: #4b423c;
+    text-align: justify;
+  }
+
+  .choice-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 12px;
+  }
+
+  .choice-prompt {
+    font-size: 14px;
+    color: var(--text-sub);
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .choice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  .choice-btn {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 17px 18px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1.5px solid #ebe1d6;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    font-family: inherit;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .choice-btn:hover {
+    border-color: rgba(229, 106, 70, 0.65);
+    background: #fffaf6;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -12px rgba(229, 106, 70, 0.28);
+  }
+
+  .choice-btn:active {
+    transform: translateY(0);
+  }
+
+  .choice-letter {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: #f4eee7;
+    color: #6d6159;
+    font-size: 13px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+    transition: all 0.22s ease;
+  }
+
+  .choice-btn:hover .choice-letter {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .choice-text {
+    font-size: 15px;
+    line-height: 1.65;
+    color: #2f2824;
+    font-weight: 500;
+  }
+
+  /* Reflection Card (Butterfly Ripple after choosing) */
+  .reflection-panel {
+    background: linear-gradient(160deg, #fffcf6 0%, #fff6ec 100%);
+    border: 1.5px solid #f0d7b8;
+    border-radius: 20px;
+    padding: 24px;
+    animation: cardEnter 0.35s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .reflection-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--gold);
+  }
+
+  .reflection-chosen {
+    font-size: 14px;
+    color: #7c6f65;
+    padding-left: 12px;
+    border-left: 3px solid #f1c48d;
+    line-height: 1.6;
+  }
+
+  .reflection-outcome {
+    font-size: 15.5px;
+    line-height: 1.85;
+    color: #362e29;
+  }
+
+  .seed-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    align-self: flex-start;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #eed6b5;
+    font-size: 13px;
+    font-weight: 700;
+    color: #a65c14;
+  }
+
+  .stat-ripples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ripple-chip {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .random-butterfly-box {
+    background: linear-gradient(135deg, #fff9db 0%, #fff2d6 100%);
+    border: 1px dashed #e7b558;
+    border-radius: 14px;
+    padding: 13px 15px;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: #7c4d0f;
+  }
+
+  .random-butterfly-box strong {
+    display: block;
+    margin-bottom: 3px;
+    color: #b4690e;
+  }
+
+  /* ==================== REPORT VIEW ==================== */
+  .report-view {
+    width: 100%;
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 28px 24px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    animation: cardEnter 0.55s ease;
+  }
+
+  .report-hero-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-xl);
+    padding: 34px 36px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .report-hero-top {
+    display: grid;
+    grid-template-columns: 148px 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  .ending-emblem-box {
+    width: 148px;
+    height: 148px;
+    border-radius: 26px;
+    background: #fbf8f4;
+    border: 1px solid #ede2d6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 8px rgba(154, 112, 74, 0.06), 0 10px 24px -12px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+  }
+
+  .report-eyebrow {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-sub);
+    margin-bottom: 6px;
+  }
+
+  .ending-title {
+    font-size: clamp(30px, 3.8vw, 40px);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+
+  .ending-tagline {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 14px;
+  }
+
+  .ending-epilogue {
+    font-size: 15.5px;
+    line-height: 1.85;
+    color: #4d443d;
+    margin-bottom: 18px;
+  }
+
+  .ending-quote-box {
+    border-radius: 16px;
+    padding: 15px 18px;
+    border: 1px solid rgba(59, 118, 246, 0.16);
+    background: #f2f7ff;
+  }
+
+  .ending-quote-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6c7a91;
+    margin-bottom: 4px;
+  }
+
+  .ending-quote-text {
+    font-family: var(--font-serif);
+    font-size: 15.5px;
+    font-weight: 700;
+    color: #293242;
+    line-height: 1.65;
+  }
+
+  .report-divider {
+    height: 1px;
+    background: #eee4d9;
+    margin: 26px 0 22px;
+  }
+
+  .report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  .report-grid {
+    display: grid;
+    grid-template-columns: 0.88fr 1.12fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .report-left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .report-card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-xl);
+    padding: 26px 26px 28px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-heading {
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 5px;
+  }
+
+  .card-sub {
+    font-size: 13px;
+    color: var(--text-sub);
+    margin-bottom: 22px;
+    line-height: 1.6;
+  }
+
+  .stat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .stat-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 7px;
+  }
+
+  .stat-name-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .stat-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .stat-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .stat-val {
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .stat-bar-track {
+    height: 10px;
+    border-radius: 999px;
+    background: #f0e8df;
+    overflow: hidden;
+  }
+
+  .stat-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .radar-wrap {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px dashed #ece0d3;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Causality Timeline */
+  .timeline-list {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-left: 22px;
+  }
+
+  .timeline-list::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 14px;
+    bottom: 14px;
+    width: 2px;
+    background: linear-gradient(180deg, #f3c26b 0%, #e98357 100%);
+    opacity: 0.55;
+  }
+
+  .timeline-item {
+    position: relative;
+    background: linear-gradient(180deg, #fffdf6 0%, #fff8e9 100%);
+    border: 1px solid #f2dca8;
+    border-radius: 16px;
+    padding: 16px 18px;
+  }
+
+  .timeline-item::before {
+    content: "";
+    position: absolute;
+    left: -20px;
+    top: 20px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #e56a46;
+    border: 2.5px solid #fff8ea;
+    box-shadow: 0 0 0 2px rgba(229, 106, 70, 0.25);
+  }
+
+  .timeline-meta {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #c96234;
+    margin-bottom: 5px;
+  }
+
+  .timeline-action {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2b2420;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+
+  .timeline-desc {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #695d54;
+  }
+
+  .gallery-cta-box {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 14px;
+    border: 1px solid #eed6a4;
+    background: #fffaf0;
+    color: #a95913;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+
+  .gallery-cta-box:hover {
+    background: #fff2d6;
+    transform: translateY(-1px);
+  }
+
+  /* ==================== GALLERY MODAL ==================== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(34, 27, 22, 0.45);
+    backdrop-filter: blur(6px);
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-backdrop.open {
+    display: flex;
+    animation: fadeIn 0.22s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal-dialog {
+    width: 100%;
+    max-width: 920px;
+    max-height: 88vh;
+    background: #fffdf9;
+    border: 1px solid var(--border-soft);
+    border-radius: 26px;
+    box-shadow: 0 28px 64px -18px rgba(34, 24, 16, 0.35);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 22px 28px;
+    border-bottom: 1px solid #f0e5d9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .modal-title {
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .modal-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid #eadfd2;
+    background: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text-sub);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-close:hover {
+    background: #fff2eb;
+    color: var(--accent);
+  }
+
+  .modal-body {
+    padding: 24px 28px 28px;
+    overflow-y: auto;
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .gallery-item {
+    border-radius: 18px;
+    padding: 18px;
+    border: 1px solid #ebe0d4;
+    background: #fff;
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    transition: all 0.2s ease;
+  }
+
+  .gallery-item.unlocked {
+    cursor: pointer;
+    background: linear-gradient(150deg, #ffffff 0%, #fffaf4 100%);
+  }
+
+  .gallery-item.unlocked:hover {
+    border-color: rgba(229, 106, 70, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -12px rgba(154, 112, 74, 0.2);
+  }
+
+  .gallery-item.locked {
+    background: #faf7f2;
+    border-style: dashed;
+    opacity: 0.88;
+  }
+
+  .gallery-mini-emblem {
+    flex-shrink: 0;
+    width: 62px;
+    height: 62px;
+    border-radius: 16px;
+    background: #f5efe7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .gallery-item-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+
+  .status-badge.done {
+    background: #e9f8f2;
+    color: #168265;
+  }
+
+  .status-badge.lock {
+    background: #eee7df;
+    color: #84776c;
+  }
+
+  .gallery-item-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #6b5f57;
+  }
+
+  .gallery-detail-preview {
+    margin-bottom: 20px;
+    padding: 18px 20px;
+    border-radius: 18px;
+    background: #fff8ee;
+    border: 1px solid #f0d7b5;
+  }
+
+  .modal-footer {
+    padding: 14px 28px;
+    border-top: 1px solid #f0e5d9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+
+  .text-link-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+  }
+
+  .text-link-btn:hover {
+    color: var(--accent);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(45, 38, 34, 0.92);
+    color: #fff;
+    padding: 11px 20px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    z-index: 80;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.28s ease;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  /* Responsive */
+  @media (max-width: 920px) {
+    .landing-content {
+      grid-template-columns: 1fr;
+      padding: 92px 24px 48px;
+    }
+    .landing-scrim {
+      background: linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 249, 242, 0.85) 68%, rgba(255, 250, 244, 0.45) 100%);
+    }
+    .story-card, .report-grid, .report-hero-top, .gallery-grid {
+      grid-template-columns: 1fr;
+    }
+    .story-topbar {
+      flex-wrap: wrap;
+    }
+    .progress-wrap {
+      order: 3;
+      max-width: 100%;
+      width: 100%;
+    }
+    .ending-emblem-box {
+      width: 112px;
+      height: 112px;
+    }
+    .report-actions {
+      justify-content: flex-start;
+    }
+  }
+</style>
+</head>
+<body class="mood-sakura">
+  <canvas id="ambient-canvas"></canvas>
+
+  <div class="app-root">
+    <!-- ==================== VIEW 1: LANDING ==================== -->
+    <section id="landing-view" class="landing-view">
+      <div id="landing-bg-art" class="landing-bg-art"></div>
+      <div class="landing-scrim"></div>
+
+      <div class="landing-topbar">
+        <button class="pill-btn" id="landing-gallery-btn">
+          <span>📖</span>
+          <span>结局图鉴 <span class="accent-num" id="landing-gallery-count">0/10</span></span>
+        </button>
+        <button class="pill-btn" id="landing-audio-btn">
+          <span id="landing-audio-icon">🔇</span>
+          <span id="landing-audio-text">音乐已关</span>
+        </button>
+      </div>
+
+      <div class="landing-content">
+        <div>
+          <div class="eyebrow">✦ 10岁到26岁 · 日系治愈系成长互动故事</div>
+          <h1 class="hero-title">小小蝴蝶：<br>我的成长轨迹</h1>
+          <p class="hero-desc">
+            十岁那年借出的半块橡皮、雨夜撑起的一把伞、海边弯腰捡起的塑料瓶…… 那些看似普通的小决定，都会在时间里慢慢长出翅膀。
+          </p>
+          <p class="hero-subdesc">
+            旅途中的每一次选择都没有对错，偶尔从窗前随机飞过的小蝴蝶，也许只是风带来的温柔巧合。
+          </p>
+
+          <div class="gender-section-label">先选一位陪你长大的主角形象（故事相同，画面与服饰随成长变化）</div>
+          <div class="gender-switch" role="tablist" aria-label="选择主角形象">
+            <button class="gender-btn active" data-gender="girl">🌸 我是女生</button>
+            <button class="gender-btn" data-gender="boy">🌿 我是男生</button>
+          </div>
+
+          <div class="hero-cta-row">
+            <button class="primary-btn" id="start-btn">
+              <span>▶</span>
+              <span>开始成长之旅</span>
+            </button>
+          </div>
+
+          <div class="hero-footer-hint">
+            <span>按 <span class="kbd-tag">Enter</span> 或 <span class="kbd-tag">Space</span> 开始旅程</span>
+            <span>·</span>
+            <span>共 10 幕选择</span>
+            <span>·</span>
+            <span>10 种专属成长结局等你遇见</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 2: STORY ==================== -->
+    <section id="story-view" class="story-view hidden">
+      <header class="story-topbar">
+        <div class="topbar-stage">
+          <div class="topbar-meta" id="topbar-meta">第 1/10 幕 · 小学四年级 · 清晨微光</div>
+          <div class="topbar-age"><span id="topbar-age">10</span> <span style="font-size:15px;font-weight:700;">岁</span></div>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-labels">
+            <span>10岁</span>
+            <span id="progress-stage-tip" style="color:var(--gold);">初心起风</span>
+            <span>26岁</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill" style="width:10%;">
+              <span class="progress-butterfly">🦋</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="pill-btn" id="story-gallery-btn">
+            <span>📖</span>
+            <span>图鉴 <span class="accent-num" id="story-gallery-count">0/10</span></span>
+          </button>
+          <button class="pill-btn icon-only" id="story-audio-btn" title="切换背景音乐">🔇</button>
+          <button class="pill-btn icon-only" id="story-home-btn" title="返回首页">🏠</button>
+        </div>
+      </header>
+
+      <main class="story-card" id="story-card">
+        <div>
+          <div class="scene-illustration-box" id="scene-art"></div>
+          <div class="scene-age-tag" id="scene-age-tag">10 岁 · 小学四年级</div>
+          <h2 class="scene-title" id="scene-title">教室里的铅笔盒与后排的抽泣</h2>
+          <p class="scene-narrative" id="scene-narrative"></p>
+        </div>
+
+        <div class="choice-column" id="choice-column"></div>
+      </main>
+    </section>
+
+    <!-- ==================== VIEW 3: ENDING REPORT ==================== -->
+    <section id="report-view" class="report-view hidden">
+      <div class="report-hero-card">
+        <div class="report-hero-top">
+          <div class="ending-emblem-box" id="report-emblem"></div>
+          <div>
+            <div class="report-eyebrow" id="report-eyebrow">26岁成长轨迹报告 · 梦想新启航</div>
+            <h1 class="ending-title" id="report-title">星辰宇航员</h1>
+            <div class="ending-tagline" id="report-tagline"></div>
+            <p class="ending-epilogue" id="report-epilogue"></p>
+            <div class="ending-quote-box" id="report-quote-box">
+              <div class="ending-quote-label">成长随笔</div>
+              <div class="ending-quote-text" id="report-quote-text"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-divider"></div>
+
+        <div class="report-actions">
+          <button class="secondary-btn" id="download-card-btn">
+            <span>📸</span>
+            <span>保存成长明信片</span>
+          </button>
+          <button class="secondary-btn" id="report-gallery-btn">
+            <span>📖</span>
+            <span>查看结局图鉴 <span id="report-gallery-count" style="color:var(--gold);">1/10</span></span>
+          </button>
+          <button class="primary-btn" id="restart-btn" style="padding:13px 24px;font-size:15px;">
+            <span>↻</span>
+            <span>开启新的人生旅程</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        <div class="report-left-col">
+          <div class="report-card">
+            <h3 class="card-heading">四维人生态度能量</h3>
+            <p class="card-sub">那些藏在日常小事里的选择，悄悄塑成了你的模样</p>
+            <div class="stat-list" id="report-stat-list"></div>
+            <div class="radar-wrap" id="report-radar"></div>
+          </div>
+
+          <div class="report-card">
+            <h3 class="card-heading">图鉴收集进度 · <span id="progress-collect-num" style="color:var(--gold);">1/10</span></h3>
+            <p class="card-sub">
+              每条路都有它自己的风景，没有绝对的对与错。试着换一种心情重走一遍，去遇见其他不同的成长故事吧！
+            </p>
+            <button class="gallery-cta-box" id="report-clues-btn">
+              <span>📖</span>
+              <span>浏览 10 大结局线索</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <h3 class="card-heading">蝴蝶效应因果回溯图</h3>
+          <p class="card-sub">回头看看，当年那些看似不起眼的选择，如何像蝴蝶扇动翅膀一样一路牵起今天的你</p>
+          <div class="timeline-list" id="report-timeline"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ==================== GALLERY MODAL ==================== -->
+  <div class="modal-backdrop" id="gallery-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-label="结局图鉴">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">🦋 10 大成长结局图鉴</div>
+          <div style="font-size:13px;color:var(--text-sub);margin-top:3px;" id="modal-subtitle">已点亮 0/10 种人生风景 · 点击已解锁结局可重温随笔</div>
+        </div>
+        <button class="modal-close" id="modal-close-btn" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="gallery-preview-area"></div>
+        <div class="gallery-grid" id="gallery-grid"></div>
+      </div>
+      <div class="modal-footer">
+        <span>提示：不同的四维能量侧重或均衡发展，会引向截然不同的 26 岁</span>
+        <button class="text-link-btn" id="reset-gallery-btn">清空图鉴记录</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  /* =========================================================
+     1. STAT DEFINITIONS & ENDINGS (10 Unique Endings)
+     ========================================================= */
+  const STAT_META = {
+    curiosity: { name: "求知力", desc: "好奇心与坚持学习", color: "#3b76f6" },
+    kindness:  { name: "善意值", desc: "助人与团队合作", color: "#e76755" },
+    warmth:    { name: "温情度", desc: "陪伴与家庭担当", color: "#ea9a28" },
+    vision:    { name: "格局观", desc: "环保、规则与公益", color: "#1e9c7a" }
+  };
+
+  const ENDINGS = [
+    {
+      id: "astronaut",
+      title: "星辰宇航员",
+      subtitle: "梦想新启航",
+      color: "#2c68f0",
+      quoteBg: "#eef5ff",
+      tagline: "把童年拆闹钟的好奇心，写进浩瀚银河",
+      epilogue: "二十六岁的你穿着银白色航天服，透过空间站舷窗望向那颗蔚蓝色的星球。十一岁那年修好的铜齿轮，早已化作无数次实验与计算里的专注与笃定。飞向太空，原来是为了更好地读懂并守护我们的地球家园。",
+      quote: "每一次对“为什么”的认真追问，都在悄悄为你铺设通往星辰大海的轨道。",
+      clue: "保持旺盛的「求知力」，并怀揣仰望星空的「格局观」。"
+    },
+    {
+      id: "clockmaker",
+      title: "精密机械修复师",
+      subtitle: "时光守艺人",
+      color: "#b96a21",
+      quoteBg: "#fff6eb",
+      tagline: "在齿轮与发条之间，修补人们不舍丢弃的时光",
+      epilogue: "你在老城区的梧桐树下开了一间明亮的机械修复工作室。桌面上摆满精密镊子、放大镜和来自各地的旧怀表、老胶片机与八音盒。每当停摆多年的发条重新发出“滴答”声，你总能想起爷爷当年发亮的眼神。",
+      quote: "真正的精密，不只是零点零一毫米的契合，更是替记忆重新接上心跳。",
+      clue: "将钻研万物的「求知力」与珍视旧物的「温情度」融为一体。"
+    },
+    {
+      id: "ocean_guardian",
+      title: "海洋生态守护者",
+      subtitle: "蔚蓝守望者",
+      color: "#148c78",
+      quoteBg: "#ebfbf7",
+      tagline: "从海边捡起的一个瓶盖开始，守望蔚蓝星球的呼吸",
+      epilogue: "二十六岁的你常年奔走于珊瑚礁监测站与海岸公益课堂之间。笔记本里记满潮汐数据、海龟洄游路线与清理计划。当年那个在礁石缝里替寄居蟹挪开塑料瓶的少年，如今正让一整片海岸重新听见清澈的浪声。",
+      quote: "海洋不会忘记任何一次弯腰，微小的坚持终会汇成守护蓝星的洋流。",
+      clue: "拥有心系自然的「格局观」，并以科学理性的「求知力」付诸行动。"
+    },
+    {
+      id: "teacher",
+      title: "乡村支教点灯人",
+      subtitle: "山海筑梦师",
+      color: "#d96b38",
+      quoteBg: "#fff3ec",
+      tagline: "把山外的风和光，折成纸飞机送进孩子们的教室",
+      epilogue: "清晨的山谷还飘着薄雾，你已站在木窗透光的教室里，把新画好的星空图挂上黑板。你记得十岁那年清晨教室里的温度，也知道一句耐心的鼓励有多大力量。孩子们眼里的光，是你走遍山野最珍贵的回响。",
+      quote: "点亮一盏灯或许改变不了黑夜，但足以让远行的孩子看清脚下的路。",
+      clue: "怀抱公益担当的「格局观」，同时保有乐于助人的「善意值」。"
+    },
+    {
+      id: "doctor",
+      title: "社区全科医生",
+      subtitle: "街巷守护者",
+      color: "#d9534f",
+      quoteBg: "#fff1f0",
+      tagline: "听诊器里跳动的，是街坊邻里最安心的四季",
+      epilogue: "二十六岁的你穿着整洁的白大褂，在社区诊室里轻声叮嘱着每一位来看诊的老人和孩子。你既有扎实严谨的专业判断，也从不吝啬多听三分钟家常。对你而言，医学是科学，更是一场永不缺席的温柔守候。",
+      quote: "治愈有时是精准的药方，更多时候，是让脆弱的人知道自己并不孤单。",
+      clue: "以柔软热忱的「善意值」为底色，辅以扎实深耕的「求知力」。"
+    },
+    {
+      id: "illustrator",
+      title: "治愈系绘本作家",
+      subtitle: "微光造梦家",
+      color: "#c95b7a",
+      quoteBg: "#fff1f6",
+      tagline: "把借出的半块橡皮与雨夜的伞，画成抚慰世界的童话",
+      epilogue: "你的画桌临窗而设，水彩盘里常年晕染着清晨的浅橘与傍晚的樱花粉。读者们总在来信里说，翻开你的绘本就像躲进一场温柔的午后小雨。只有你知道，故事里每一只发光的小蝴蝶，都来自你曾认真拥抱过的瞬间。",
+      quote: "生活里那些来不及言说的温柔，会在画笔落纸的一刻重新长出翅膀。",
+      clue: "兼具细腻共情的「善意值」与热爱生活烟火的「温情度」。"
+    },
+    {
+      id: "baker",
+      title: "温情烘焙主理人",
+      subtitle: "烟火治愈师",
+      color: "#d6841c",
+      quoteBg: "#fff8e8",
+      tagline: "在海风吹过的转角，用一炉刚出烤盘的香气留住归人",
+      epilogue: "清晨六点，海滨街角的小店亮起鹅黄色灯光，黄油与麦香顺着微风飘过半条街。下班疲惫的上班族、放学背书包的孩子、牵手散步的老人，都会在这里捧起一份温热的面包。你把对家与陪伴的眷恋，揉进了每一天。",
+      quote: "世界很匆忙，总要有一扇暖黄色的窗，替晚归的人留着刚刚出炉的甜。",
+      clue: "将重视陪伴与家庭的「温情度」做到极致，并传递日常的「善意值」。"
+    },
+    {
+      id: "director",
+      title: "人文纪录片导演",
+      subtitle: "时代记录者",
+      color: "#6b5cd6",
+      quoteBg: "#f3f1ff",
+      tagline: "透过取景框，把平凡人微小的勇敢写成时代情书",
+      epilogue: "二十六岁的你背着轻便摄影机走过渔村、老街与深夜车站。你不追逐喧嚣的镜头，偏爱定格修表匠微皱的眉、暴雨里递出雨伞的手和跑道上咬牙冲刺的背影。你的作品让无数观众在银幕前热泪盈眶。",
+      quote: "镜头之所以动人，是因为拍摄者先学会了用心倾听每一个普通人的呼吸。",
+      clue: "把细腻深情的「温情度」与关注社会众生的「格局观」结合在一起。"
+    },
+    {
+      id: "musician",
+      title: "独立音乐疗愈师",
+      subtitle: "风声采集者",
+      color: "#2b8a9e",
+      quoteBg: "#edf9fc",
+      tagline: "将风声、雨滴与蝉鸣谱成旋律，让疲惫的心重新发芽",
+      epilogue: "你的录音笔里珍藏着十年来各地的细碎声响：海浪轻拍礁石、雨滴敲打伞面、教室翻动书页。二十六岁的你在小型音乐会与疗愈工坊之间自由穿梭，用温柔的琴声替都市里紧绷的人们松开眉头。",
+      quote: "当你不急着奔向标准答案，生活的每一种声音都会自然谱成和弦。",
+      clue: "四维能量均衡绽放，且略偏向细腻柔软的「温情度」与「善意值」。"
+    },
+    {
+      id: "traveler",
+      title: "自由人生旅人",
+      subtitle: "山海漫游者",
+      color: "#437d5b",
+      quoteBg: "#eef9f2",
+      tagline: "不被单一轨道定义，在山海与烟火之间活成自己的风",
+      epilogue: "二十六岁的你过着跨界而丰盈的生活：春天在海岛写专栏、秋天帮公益项目做策划、冬天回家给父母做一桌热菜。你没有被某一种标签框住，而是带着满满的好奇、善良与松弛，把人生走成了开阔的旷野。",
+      quote: "蝴蝶飞过山谷从不画直线，每一步顺从内心的偏航，都是风景本身。",
+      clue: "四维能量全面均衡成长，兼具探索欲、温柔心与开阔视野。"
+    }
+  ];
+
+  /* =========================================================
+     2. 10 CHAPTERS STORY DATA (Age 10 -> 26)
+     ========================================================= */
+  const CHAPTERS = [
+    {
+      id: 1,
+      age: 10,
+      grade: "小学四年级",
+      atmosphere: "清晨微光",
+      mood: "mood-morning",
+      stageTip: "初心起风",
+      sceneKey: "classroom",
+      title: "教室里的铅笔盒与后排的抽泣",
+      narrative: "周一早读课前，教室里乱哄哄的。同桌小宇急得眼圈发红——他把昨天熬夜整理的数学错题本忘在公交车上了，连橡皮也没带。讲台前，班主任王老师刚发完新练习册，正揉着发酸的肩膀轻轻咳嗽。窗外阳光斜照在课桌上，离上课铃还有三分钟。",
+      choices: [
+        {
+          label: "A",
+          text: "把橡皮掰成两半递给小宇，顺便把笔记本借他抄，下课再帮王老师擦黑板。",
+          stats: { kindness: 16, warmth: 6 },
+          tag: "半块橡皮的善意",
+          action: "将心爱的橡皮掰成两半借给急红眼眶的同桌，又顺手帮老师分担",
+          outcome: "小宇破涕为笑，把那半块带着淡淡香气的橡皮珍重地放进铅笔盒。下课后你替王老师擦干净黑板，阳光落在飘浮的粉笔灰里，像一场安静的金色雪。",
+          causalHint: "那半块掰开的橡皮让你早早明白，把温暖分给别人时，心里反而会多出一份光亮。"
+        },
+        {
+          label: "B",
+          text: "把自己的错题思路快速讲给小宇听，帮他默写一遍关键公式，同时记下自己的薄弱题。",
+          stats: { curiosity: 15, kindness: 7 },
+          tag: "三分钟公式笔记",
+          action: "赶在上课前帮同桌梳理数学公式，在讲题中把知识学得更透彻",
+          outcome: "三分钟里你们俩头碰头写满半页草稿纸。铃声响起时，小宇心里踏实了许多，你也惊喜地发现，原来把一道题讲明白比自己做对还要开心。",
+          causalHint: "在帮同桌梳理公式的那三分钟里，清晰思考与分享知识的喜悦悄悄扎了根。"
+        },
+        {
+          label: "C",
+          text: "跑上讲台帮王老师倒一杯温水，再回来轻轻拍拍小宇：“别急，老师会理解你的。”",
+          stats: { warmth: 16, kindness: 6 },
+          tag: "讲台上的温水杯",
+          action: "细心察觉老师的疲惫倒去温水，又用温柔的话语安抚慌张的同桌",
+          outcome: "王老师端起温热的陶瓷杯，对你露出舒展的笑意；小宇也深吸一口气不再发抖。原来小小的体贴，真的能让整个教室的空气都变柔软。",
+          causalHint: "你天生能敏锐捕捉身边人细微的疲惫与不安，总在第一时间递出暖意。"
+        },
+        {
+          label: "D",
+          text: "建议小宇课间一起去学校失物招领处和公交调度室打电话问问，说不定能按制度找回来。",
+          stats: { vision: 15, curiosity: 7 },
+          tag: "寻回错题本的办法",
+          action: "冷静想出联系公交调度室与失物招领的办法，帮同桌按流程找回本子",
+          outcome: "放学前调度室真的传来了好消息！小宇惊喜地抱住错题本，你则第一次体会到：面对混乱时保持冷静、寻找公共规则里的办法，竟然这么有力量。",
+          causalHint: "十岁那次冷静解决失物危机，让你懂得秩序与办法能温柔地托住慌张的人。"
+        }
+      ]
+    },
+    {
+      id: 2,
+      age: 11,
+      grade: "小学五年级",
+      atmosphere: "午后蝉鸣",
+      mood: "mood-noon",
+      stageTip: "好奇萌芽",
+      sceneKey: "clock",
+      title: "阁楼里停摆的铜壳旧闹钟",
+      narrative: "暑假午后，老屋阁楼里弥漫着樟木香。爷爷珍藏了三十年的老式铜壳发条闹钟彻底停摆了。大人们劝说干脆换个精准的电子表，可爷爷摩挲着泛黄的表盘，小声嘟囔：“这老伙计陪我走过半辈子啦……”桌边正躺着一把旧放大镜和小号螺丝刀。",
+      choices: [
+        {
+          label: "A",
+          text: "用放大镜和螺丝刀研究齿轮原理，查遍科普书，亲手把爷爷的旧闹钟修好。",
+          stats: { curiosity: 18, warmth: 5 },
+          tag: "修好的旧闹钟",
+          action: "用放大镜和螺丝刀研究齿轮原理，亲手修好了爷爷的旧闹钟",
+          outcome: "经过整整两个下午的拆解、清灰与复位，当铜摆轮重新发出清脆的“滴答”声时，蝉鸣仿佛都停了一拍。机械咬合的奥秘，在你眼里绽放出星河般的光。",
+          causalHint: "拆解与钻研的科学好奇心陪着你长大，让你敢于面对精密而宏大的世界。"
+        },
+        {
+          label: "B",
+          text: "坐在爷爷身边，认真听他讲这只闹钟背后三十年的旧故事，并用本子一字一句记下来。",
+          stats: { warmth: 17, kindness: 5 },
+          tag: "阁楼里的旧时光笔记",
+          action: "陪在爷爷身旁认真倾听并记录下旧闹钟背后三十年的家族记忆",
+          outcome: "爷爷从年轻时的火车站讲到你出生的那个雨夜，眼角满是笑纹。虽然闹钟暂时安静了，但你把那些差点随风散去的记忆，好好藏进了纸页里。",
+          causalHint: "陪爷爷记录旧时光的午后，教会你倾听与守护人世间最柔软的情感牵绊。"
+        },
+        {
+          label: "C",
+          text: "带着闹钟跑遍老街，向修表铺的老匠人虚心请教，并请他把旧零件修复复用而不是丢弃。",
+          stats: { vision: 15, warmth: 8 },
+          tag: "老街修表铺的约定",
+          action: "不愿轻易丢弃旧物，走街串巷寻访老匠人让老闹钟重获新生",
+          outcome: "老匠人夸你懂得“惜物”，还顺手教了你保养铜壳的小诀窍。回家的路上你明白：比起喜新厌旧，用心修复并延续旧物的生命同样动人。",
+          causalHint: "不轻言抛弃的惜物之心，让你对可持续发展与匠人精神有了最初的敬意。"
+        },
+        {
+          label: "D",
+          text: "拉上院子里的小伙伴分工合作，有人查资料、有人照手电，一起给爷爷一个惊喜。",
+          stats: { kindness: 15, curiosity: 8 },
+          tag: "院子里的修理小队",
+          action: "号召小伙伴分工协作，大家齐心协力替爷爷重新拧响了发条",
+          outcome: "四个小脑袋凑在台灯下忙活了一整个傍晚。闹钟响起的那一刻，欢呼声惊飞了屋檐下的麻雀，爷爷笑着端出冰镇西瓜犒劳大家。",
+          causalHint: "和伙伴并肩攻克难题的快乐，让你深信团结协作能把不可能变成惊喜。"
+        }
+      ]
+    },
+    {
+      id: 3,
+      age: 12,
+      grade: "小学毕业季",
+      atmosphere: "海岸晚风",
+      mood: "mood-sunset",
+      stageTip: "看见世界",
+      sceneKey: "beach",
+      title: "退潮礁石边的塑料瓶与寄居蟹",
+      narrative: "小学毕业研学来到海边小镇，橘红色的夕阳把海面染得闪闪发亮。同学们都在沙滩上追逐拍照，你独自沿着退潮后的礁石走去，却看见石缝里卡着十几个塑料瓶和缠结的渔网，一只小小的寄居蟹正把一个蓝色塑料瓶盖当成了自己的壳。",
+      choices: [
+        {
+          label: "A",
+          text: "拍下海洋垃圾并查阅降解知识，把塑料瓶一一捡起，回校整理成一份图文环保小报。",
+          stats: { vision: 16, curiosity: 8 },
+          tag: "礁石边的环保笔记",
+          action: "拍下海洋垃圾并查阅降解知识，回校整理成环保小报唤起行动",
+          outcome: "你找来一个完整的天然贝壳放在小寄居蟹旁边，又用数据画出了塑料在海里停留数百年的时间轴。那期环保小报贴在学校走廊，吸引了整整三个年级的目光。",
+          causalHint: "用科学数据唤醒身边人的环保行动，让你真正看懂了微小行动背后的宏大格局。"
+        },
+        {
+          label: "B",
+          text: "立刻喊来附近玩的同学，笑着发起一场“十分钟净滩挑战”，大家一起把礁石清理干净。",
+          stats: { kindness: 14, vision: 10 },
+          tag: "夕阳下的净滩小队",
+          action: "带动同学们发起夕阳净滩行动，用轻松温暖的方式一起守护海岸",
+          outcome: "原本只顾着拍照的同学们纷纷卷起裤脚加入，十分钟就装满两大袋垃圾。海风吹过干净的礁石，你们在夕阳里拍下了最骄傲的一张毕业合影。",
+          causalHint: "你擅长把宏大的公益变成温暖的同行，让善意在欢笑中不断扩散。"
+        },
+        {
+          label: "C",
+          text: "静静帮寄居蟹挑了一枚合身的天然螺壳，等它怯生生搬完“新家”，才安心把瓶盖带走。",
+          stats: { warmth: 16, vision: 7 },
+          tag: "寄居蟹的新家",
+          action: "耐心为礁石边的小寄居蟹找到天然螺壳，静静守候它搬完新家",
+          outcome: "夕阳沉进海平线前，小寄居蟹挥了挥钳子，敏捷地钻进了你挑的螺壳里。那一刻你觉得，尊重每一条微小生命，本身就是最温柔的浪漫。",
+          causalHint: "蹲下身守护一只小寄居蟹的耐心，让你的心始终保有对万物生灵的深情。"
+        },
+        {
+          label: "D",
+          text: "仔细观察潮汐规律和垃圾漂流方向，记录下不同海浪会把漂浮物带到哪些角落。",
+          stats: { curiosity: 16, vision: 7 },
+          tag: "潮汐流向观察录",
+          action: "认真观察海浪与洋流轨迹，在笔记本里记下漂浮物汇聚的自然规律",
+          outcome: "带队老师惊讶于你敏锐的观察力，把你的手绘潮汐草图转交给了当地海滩管护员。原来仔细观察世界，真的能替自然找到治本的线索。",
+          causalHint: "敏锐的观察习惯让你习惯透过表象寻找规律，从细节里读懂世界的运行法则。"
+        }
+      ]
+    },
+    {
+      id: 4,
+      age: 14,
+      grade: "初中二年级",
+      atmosphere: "操场夕阳",
+      mood: "mood-sunset",
+      stageTip: "风起跑道",
+      sceneKey: "track",
+      title: "接力赛弯道上的那一瞬间",
+      narrative: "秋季运动会 4×100 米接力决赛，你是最后一棒。橘红的晚霞铺满操场，看台上呐喊震天。接过接力棒冲进最后弯道时，隔壁道次的对手因为心急突然越线抢道，手肘差点擦撞到你；几乎同一秒，身后不远处另一班的选手脚下一滑重重摔在塑胶跑道上。",
+      choices: [
+        {
+          label: "A",
+          text: "面对对手抢道干扰，依然稳住步伐守住自己的跑道规则，拼尽全力冲刺到底。",
+          stats: { vision: 16, curiosity: 6 },
+          tag: "接力赛不放弃",
+          action: "面对对手抢道干扰，依然守住跑道规则拼命冲刺到底",
+          outcome: "你没有以怨报怨，而是用干净利落的步伐冲过终点线。裁判随后公正判定了违规，全场响起雷鸣般的掌声——赢下比赛固然痛快，赢得坦荡更令人心潮澎湃。",
+          causalHint: "你懂得了真正的力量不止靠冲动，更靠对规则的敬畏与关键时刻的沉着专注。"
+        },
+        {
+          label: "B",
+          text: "冲过终点线后顾不上喘气，立刻折返扶起摔倒擦伤的别班选手，一路陪他去医务室。",
+          stats: { kindness: 17, warmth: 6 },
+          tag: "终点线后的转身",
+          action: "冲线后第一时间折返扶起摔倒的对手，陪伴他前往医务室处理伤口",
+          outcome: "那位素不相识的同学红着脸说了好几声谢谢。夕阳把你们并肩走去的影子拉得很长，奖牌会褪色，但那个伸出手的瞬间被很多人记了很久。",
+          causalHint: "在胜负之外依然看得见他人的疼痛，这份不加思索的善良是你最动人的底色。"
+        },
+        {
+          label: "C",
+          text: "赛后拉着全队围在一起分析交接棒节奏与步频，用秒表记录数据，约定明年一起破纪录。",
+          stats: { curiosity: 15, kindness: 8 },
+          tag: "塑胶跑道的数据本",
+          action: "赛后和队友一起复盘步频与交接棒时机，用科学训练迎接下一次挑战",
+          outcome: "大家原本有些懊恼，听完你的细致分析后重新燃起斗志。原来热血加上科学复盘，能让每一次奔跑都离理想更近一步。",
+          causalHint: "你习惯把遗憾转化为可改进的方法，在一次次复盘中磨炼出越战越勇的韧性。"
+        },
+        {
+          label: "D",
+          text: "跑去拥抱自责落泪的第三棒队友，递上毛巾轻声说：“我们是一个整体，你已经很棒了。”",
+          stats: { warmth: 16, kindness: 7 },
+          tag: "跑道边的温暖拥抱",
+          action: "第一时间安抚自责的队友，用温柔的拥抱守护彼此并肩的信任",
+          outcome: "队友擦干眼泪终于笑了出来，全班同学围成一圈欢呼。那一晚的晚风很甜，你记住了比名次更珍贵的东西：让人安心依靠的温度。",
+          causalHint: "你总能在众人欢呼或失落时，温柔接住那个最需要拥抱的人。"
+        }
+      ]
+    },
+    {
+      id: 5,
+      age: 16,
+      grade: "高中一年级",
+      atmosphere: "骤雨黄昏",
+      mood: "mood-rain",
+      stageTip: "雨夜撑伞",
+      sceneKey: "rain",
+      title: "公交站台下的最后一把折叠伞",
+      narrative: "晚自习放学，天空突降倾盆大雨，路灯在积水里晕开一圈圈琥珀色的光。你书包里只有一把不太大的折叠伞。狭小的公交站台下，拎着沉重菜篮的阿婆正焦急地张望回家的巷口，旁边还站着一位怀里紧紧护着一整摞水彩画纸、浑身湿透的美术生学弟。",
+      choices: [
+        {
+          label: "A",
+          text: "把伞借给护着画纸的学弟，自己帮阿婆拎起菜篮，两人挤进屋檐连廊一路小跑送她回家。",
+          stats: { kindness: 16, warmth: 8 },
+          tag: "雨夜递出的折叠伞",
+          action: "把唯一的折叠伞留给护画的学弟，自己帮阿婆拎菜篮沿廊护送回家",
+          outcome: "回到家时你半边肩膀湿透了，却喝上了阿婆塞进你手里的热姜茶；第二天一早，课桌里多了一张学弟画的雨夜发光蝴蝶明信片。",
+          causalHint: "雨夜里毫不犹豫分担他人的狼狈，让世界也在往后的岁月里一次次为你撑起晴空。"
+        },
+        {
+          label: "B",
+          text: "先撑伞护送行动不便的阿婆安全到巷口，再折返车站把伞递给学弟，并帮他用塑料袋封好画纸。",
+          stats: { warmth: 16, vision: 7 },
+          tag: "往返两趟的雨夜路",
+          action: "稳妥规划顺序，先护送老人回家再折返保护学弟的画纸，谁也不落下",
+          outcome: "虽然多走了二十分钟雨路，但阿婆平安进了门，学弟的画稿一滴水也没沾。推开家门听见窗外雨声时，你心里涌起一阵踏实的暖流。",
+          causalHint: "兼顾长辈与他人的周全与担当，让你总能把身边的事妥帖安放。"
+        },
+        {
+          label: "C",
+          text: "想起街角便利店有爱心共享雨伞，冒雨快跑过去借来两把，并顺手把使用登记写得清清楚楚。",
+          stats: { vision: 17, kindness: 6 },
+          tag: "共享雨伞的接力",
+          action: "巧妙借用社区爱心共享伞解燃眉之急，并认真提醒大家次日按时归还",
+          outcome: "三个人都体面地撑着伞走进了雨幕。第二天你们不约而同把伞晾干送回原处，便利店阿姨笑着说，这排共享伞因此多添了好几把新伞。",
+          causalHint: "善用并维护身边的公共善意，让你看见微小守信如何让整座城市更有温度。"
+        },
+        {
+          label: "D",
+          text: "先和两人一起躲雨，趁等车间隙教大家用废旧试卷折出临时防水纸套保护画稿，顺便聊起气象云图。",
+          stats: { curiosity: 16, warmth: 6 },
+          tag: "屋檐下的雨声课堂",
+          action: "巧手制作防水纸套保护画纸，用轻松有趣的知识化解骤雨中的焦虑",
+          outcome: "原本沉闷焦急的等待变成了一场笑声不断的屋檐小聚，二十分钟后雨势渐小，三个人踏着倒映灯火的水洼各自启程。",
+          causalHint: "在突如其来的风雨里依然保持从容与巧思，总能把窘境变成有趣的小插曲。"
+        }
+      ]
+    },
+    {
+      id: 6,
+      age: 18,
+      grade: "高三毕业夜",
+      atmosphere: "星光书桌",
+      mood: "mood-night",
+      stageTip: "星光抉择",
+      sceneKey: "desk",
+      title: "志愿表前飘落的银杏叶书签",
+      narrative: "高考志愿填报截止的前一晚，台灯发出柔和的暖光，窗外繁星点点。饭桌上父母轻声建议你选一个稳妥体面的热门方向，说这样以后少吃苦；而你翻开夹着银杏叶书签的日记本，心里藏着一个听起来没那么“划算”、却每次想起都让你眼眶发热的梦想。",
+      choices: [
+        {
+          label: "A",
+          text: "彻夜查阅培养方案与行业前景，做一份详实的规划图，和父母坦诚沟通后坚定选择探索未知的基础学科。",
+          stats: { curiosity: 18, vision: 6 },
+          tag: "星夜里的学科规划",
+          action: "用理性调研说服父母，义无反顾地奔向探索未知的学术与科学之路",
+          outcome: "父母看着你画满批注的笔记本，沉默片刻后轻轻拍了拍你的肩膀：“既然你想得这么清楚，就去飞吧。”窗外微风吹动银杏书签，像一声温柔的祝福。",
+          causalHint: "既敢追随热爱又懂得用理性支撑梦想，让你在人生关键分岔口走得格外笃定。"
+        },
+        {
+          label: "B",
+          text: "认真倾听父母的担忧，和他们一起商量出一个既能照顾家庭牵挂、又能保留个人热爱的折中方案。",
+          stats: { warmth: 17, kindness: 6 },
+          tag: "台灯下的彻夜长谈",
+          action: "理解父母的爱与牵挂，通过温柔沟通找到兼顾亲情与梦想的平衡路",
+          outcome: "那晚你们聊到凌晨两点，第一次像真正的大人一样读懂彼此的柔软。母亲端来一碗热汤圆，你忽然明白，带着家人的理解出发有多幸福。",
+          causalHint: "你不愿用决绝证明长大，懂得在爱与独立之间搭建桥梁，这让你的步伐分外安稳。"
+        },
+        {
+          label: "C",
+          text: "把目光投向生态、教育或公共服务领域，想把青春学到的本领用在真正需要人的地方。",
+          stats: { vision: 18, kindness: 6 },
+          tag: "写给远方的志愿表",
+          action: "将目光投向公共价值与远方需求，把个人理想写进更广阔的时代画卷",
+          outcome: "提交确认键按下的那一刻，心里仿佛升起一片辽阔的海。也许前路并不喧哗，但你知道自己的脚步正朝向一片值得奔赴的土地。",
+          causalHint: "十八岁那晚把心意交给更广阔的世界，这份胸怀一直照亮你往后的每一步。"
+        },
+        {
+          label: "D",
+          text: "顺从内心对人与故事的热爱，选择能直接疗愈、帮助或温暖他人的专业方向。",
+          stats: { kindness: 16, warmth: 8 },
+          tag: "顺应心意的方向",
+          action: "听从内心的温柔召唤，选择能用专业去倾听与抚慰他人的道路",
+          outcome: "你在日记本末页画了一只小小蝴蝶，写下：“愿以后每一天，都能靠近真实而鲜活的人。”那一夜你睡得格外香甜。",
+          causalHint: "顺从内心对人的关切做出选择，让你把专业长成了温暖世界的羽翼。"
+        }
+      ]
+    },
+    {
+      id: 7,
+      age: 20,
+      grade: "大学二年级",
+      atmosphere: "银杏长廊",
+      mood: "mood-morning",
+      stageTip: "羽翼初展",
+      sceneKey: "campus",
+      title: "银杏大道上的社团招新路口",
+      narrative: "十月的大学校园铺满金黄的银杏叶，秋风把招新海报吹得沙沙作响。大二的课余时间格外珍贵，四个截然不同的机会同时向你发出邀请，每个摊位前都站着眼里有光的学长学姐，而你只能全心投入其中一项。",
+      choices: [
+        {
+          label: "A",
+          text: "加入教授的跨学科实验室，在仪器与文献中熬夜打磨自己的第一项独立小课题。",
+          stats: { curiosity: 17, vision: 6 },
+          tag: "实验室的深夜微光",
+          action: "潜心投入跨学科实验研究，在一次次试错里尝到突破未知的甜头",
+          outcome: "无数个泡在图书馆与实验室的夜晚后，你亲手跑通了第一组漂亮的数据。走出实验楼时，晨曦正洒满银杏树梢。",
+          causalHint: "在大学实验室里打磨出的专注与求真精神，成为你日后攻克难关的底气。"
+        },
+        {
+          label: "B",
+          text: "报名偏远山区暑期支教与生态调研队，背上行囊去看看课本之外的真实土地。",
+          stats: { vision: 16, kindness: 8 },
+          tag: "翻越山岭的夏令营",
+          action: "背上行囊奔赴山区支教与环保调研，在山野风声中丈量真实的土地",
+          outcome: "那个夏天你晒黑了两个度，却收获了一沓写满歪扭字迹的感谢信。火车驶离山谷时，你知道自己的世界从此变得很宽很宽。",
+          causalHint: "走出象牙塔触碰真实大地的经历，让你的理想不再悬在空中，而是深深扎根泥土。"
+        },
+        {
+          label: "C",
+          text: "加入校园心理互助与社区志愿服务队，每周去养老院和儿童绘本馆做温暖的陪伴者。",
+          stats: { kindness: 16, warmth: 8 },
+          tag: "周末的绘本与茶香",
+          action: "坚持每周前往社区与绘本馆志愿陪伴，用耐心倾听照亮无数个周末",
+          outcome: "老人们记住了你泡茶的习惯，孩子们每周六都趴在窗台等你讲新故事。你渐渐发现，给予陪伴的过程，其实也在悄悄治愈着自己。",
+          causalHint: "日复一日的社区志愿陪伴，让你练就了能迅速安抚人心的温柔力量。"
+        },
+        {
+          label: "D",
+          text: "和志同道合的朋友在天台排练吉他、拍微电影、研究手工烘焙，认真记录青春的每一帧。",
+          stats: { warmth: 16, curiosity: 7 },
+          tag: "银杏树下的创作社",
+          action: "和挚友沉浸在音乐、影像与手作创作里，把青春的细腻感受化作作品",
+          outcome: "虽然设备简陋，但你们的第一支小作品在校园草坪放映时，晚风里响起了久久不散的掌声。原来用心生活本身，就是最棒的创作。",
+          causalHint: "把热爱与生活气息酿成作品的时光，让你拥有了化平凡为诗意的魔法。"
+        }
+      ]
+    },
+    {
+      id: 8,
+      age: 22,
+      grade: "大学毕业季",
+      atmosphere: "城市天台",
+      mood: "mood-sunset",
+      stageTip: "告别校园",
+      sceneKey: "rooftop",
+      title: "霓虹初上时的第一份人生选择",
+      narrative: "毕业典礼后的傍晚，你独自走上宿舍天台吹风。远处城市渐次亮起万家灯火，晚霞在天边勾出柔和的紫粉色。手机屏幕亮了又暗，几份截然不同的人生邀约静静躺在收件箱里，每一条路都通向不同的二十六岁。",
+      choices: [
+        {
+          label: "A",
+          text: "申请顶尖科研机构或深造项目，甘愿再坐几年冷板凳，把热爱的技术与学问钻到最深处。",
+          stats: { curiosity: 17, warmth: 5 },
+          tag: "继续深耕的入场券",
+          action: "拒绝浮躁诱惑，选择继续深造与钻研，把青春交给经得起时间检验的本领",
+          outcome: "搬进新书桌的那天，你在窗台摆了一盆小小多肉。前路或许安静漫长，但每掌握一项硬核本领，心里就多一分从容。",
+          causalHint: "毕业时不急于求成的深耕选择，为你积蓄了后来破茧而出的厚重能量。"
+        },
+        {
+          label: "B",
+          text: "回到熟悉的家乡或近郊小城，守在日渐添了白发的父母身旁，踏踏实实经营自己的小天地。",
+          stats: { warmth: 18, kindness: 5 },
+          tag: "归乡的温暖灯火",
+          action: "听从内心的眷恋回到熟悉的小城，在陪伴家人的烟火气里开启独立事业",
+          outcome: "回家的第一顿晚饭，满桌都是你最爱的菜。父母嘴上说着“怎么不留在大城市”，眼角却藏不住满溢的笑意。",
+          causalHint: "你把“让所爱之人安心”放在了很重的位置，也因此在人间烟火里找到了扎实的幸福。"
+        },
+        {
+          label: "C",
+          text: "投身一线公益组织、生态保护或基层建设，哪怕起薪不高，也要去做真正能改变些什么的事。",
+          stats: { vision: 18, warmth: 5 },
+          tag: "奔赴一线的背囊",
+          action: "背起行囊加入一线公共与生态事业，用踏实行动去回应时代的需要",
+          outcome: "入职第一周虽然风吹日晒，但当你看见自己参与推动的小项目真正落地时，晚风吹在脸上，比任何高楼霓虹都令人心动。",
+          causalHint: "不计较短期得失而选择长期价值，让你的二十六岁站上了更辽阔的风景高地。"
+        },
+        {
+          label: "D",
+          text: "加入一家充满人情味的小团队，与彼此信任的伙伴并肩打拼，用作品与服务去温暖更多人。",
+          stats: { kindness: 16, vision: 7 },
+          tag: "并肩启航的微光团队",
+          action: "选择志同道合的温暖团队，在互相信任的协作中开启职业旅程",
+          outcome: "没有冰冷的内耗，只有深夜一起吃宵夜改方案的默契。你庆幸自己选了一群眼里同样有光的人同行。",
+          causalHint: "在充满信任的团队中成长，让你学会了把个人的微光汇成照亮他人的炬火。"
+        }
+      ]
+    },
+    {
+      id: 9,
+      age: 24,
+      grade: "初入社会",
+      atmosphere: "深夜微雨",
+      mood: "mood-night",
+      stageTip: "破茧时刻",
+      sceneKey: "store",
+      title: "便利店热关东煮白雾里的自我对话",
+      narrative: "二十四岁的深秋，你遭遇了步入社会后最措手不及的一次挫折——倾注数月心血的计划突然受挫，质疑声接踵而至。细雨淅沥，你坐在街角 24 小时便利店窗边，捧着一杯冒着热气的饮品。玻璃窗外，一只不知从何处飞来的淡金色夜蝶轻轻停驻在暖光里。",
+      choices: [
+        {
+          label: "A",
+          text: "擦干情绪，掏出手机逐条拆解失败原因，把这次跌倒当成最宝贵的实验样本重新出发。",
+          stats: { curiosity: 16, vision: 7 },
+          tag: "雨夜复盘的韧性",
+          action: "在挫折的低谷里冷静拆解症结，将跌倒化作重新起飞的阶梯",
+          outcome: "天亮前你在备忘录里写下了全新的迭代方案。推开便利店玻璃门时雨刚好停了，空气清冽得像一场崭新的开始。",
+          causalHint: "二十四岁雨夜里不逃避、敢复盘的清醒，让你彻底拥有了穿越风浪的能力。"
+        },
+        {
+          label: "B",
+          text: "给家人或多年老友打一通电话，坦诚说出自己的脆弱，也顺便问问他们最近过得好不好。",
+          stats: { warmth: 16, kindness: 7 },
+          tag: "深夜接通的暖音",
+          action: "勇敢向珍视的人敞开心扉，在彼此牵挂的语音里找回继续前行的力量",
+          outcome: "电话那头没有说教，只有一句“累了就歇两天，家里永远给你留着汤”。眼泪落下来的那一刻，心里的石头忽然轻了一半。",
+          causalHint: "懂得在脆弱时与爱相连，让你从未在漫长成长里变得坚硬麻木。"
+        },
+        {
+          label: "C",
+          text: "主动承担责任并安抚同样沮丧的同事，请大家喝热饮，一起把善后工作做得体面周全。",
+          stats: { kindness: 16, vision: 7 },
+          tag: "低谷里的担当",
+          action: "在逆境中挺身而出安抚伙伴、体面善后，用真诚赢得所有人的敬重",
+          outcome: "危机过去后，反而有更多伙伴和客户记住了你的可靠与真诚。原来真正的成熟，是在最难的时候依然不丢掉对他人的善意。",
+          causalHint: "在低谷里展现出的担当与温柔，悄悄为你铺就了最值得信赖的人生口碑。"
+        },
+        {
+          label: "D",
+          text: "跳出眼前的得失，想想十岁那年的初心与更长远的价值，轻声告诉自己：风大，那就顺风滑翔。",
+          stats: { vision: 16, warmth: 7 },
+          tag: "与自己和解的夜蝶",
+          action: "拉长时间尺度回望初心，在静谧雨夜里学会与不完美温柔和解",
+          outcome: "窗外那只小蝴蝶轻轻振翅飞进了夜色。你深吸一口气，忽然觉得一时的成败在漫长人生里不过是一朵小浪花，真正重要的是没走丢自己。",
+          causalHint: "在受挫时依然守得住从容格局，让你在日后的大事面前总能气定神闲。"
+        }
+      ]
+    },
+    {
+      id: 10,
+      age: 26,
+      grade: "春风山丘",
+      atmosphere: "樱花重逢",
+      mood: "mood-sakura",
+      stageTip: "蝴蝶成翼",
+      sceneKey: "hill",
+      title: "重返海滨小镇的樱花坡道",
+      narrative: "二十六岁的春天，你回到十岁时生活过的海滨小镇。樱花开满整个山坡，海风卷着花瓣掠过蔚蓝的海湾。站在这条走了很多年的小路上，远方传来放学的钟声，仿佛能看见当年那个背着书包奔跑的小小身影。如果能递给十岁的自己一句话，你会说：",
+      choices: [
+        {
+          label: "A",
+          text: "“请永远保持对世界的好奇吧，每一个你认真追问过的‘为什么’，都在未来闪闪发光。”",
+          stats: { curiosity: 14, vision: 5 },
+          tag: "写给十岁的好奇之约",
+          action: "回望十六年成长，把永不熄灭的好奇与求索送给十岁的自己",
+          outcome: "樱花瓣落在你的肩头，远处的海面碎金闪烁。十岁到二十六岁的光阴轻轻合拢，你的故事正迎来最辽阔的新章。",
+          causalHint: "一路未曾熄灭的求知微光，终于在二十六岁的春天汇聚成照亮未来的星河。"
+        },
+        {
+          label: "B",
+          text: "“谢谢你当年借出的半块橡皮和雨夜的伞，你给出过的每一次善意，世界都双倍还给我啦。”",
+          stats: { kindness: 14, warmth: 5 },
+          tag: "写给十岁的善意回信",
+          action: "感谢十岁那个柔软善良的自己，相信每一份微光终会被岁月温柔回应",
+          outcome: "一阵暖风吹过坡道，成群淡金色的光斑在花影间起舞。你微笑着迈开脚步，奔向属于你的二十六岁。",
+          causalHint: "十六年来未曾褪色的温柔与善意，让你成为别人生命里如春风般的存在。"
+        },
+        {
+          label: "C",
+          text: "“别怕走得慢一点，好好抱抱身边爱你的人，人间最珍贵的风景一直在烟火与陪伴里。”",
+          stats: { warmth: 14, kindness: 5 },
+          tag: "写给十岁的烟火情书",
+          action: "叮嘱童年的自己不必慌张赶路，珍惜身旁每一个温暖的拥抱与晨昏",
+          outcome: "山脚下的海滨小镇升起袅袅炊烟，柔和的霞光铺满天空。你知道，无论飞多远，心里永远有一座开满樱花的港湾。",
+          causalHint: "对陪伴与人间烟火的深切眷恋，让你的二十六岁满溢着踏实而动人的幸福。"
+        },
+        {
+          label: "D",
+          text: "“放心去追更远的风吧，哪怕只是一只小小蝴蝶，认真扇动翅膀，也能温柔地改变世界。”",
+          stats: { vision: 14, curiosity: 5 },
+          tag: "写给十岁的蝴蝶翅膀",
+          action: "寄语十岁的自己勇敢怀抱远方，相信微小的坚持终能掀起温柔的波澜",
+          outcome: "一只泛着金光的蝴蝶从樱花枝头起飞，绕着你转了一圈，朝蔚蓝的海天交界处飞去。属于二十六岁的成长轨迹报告，正在展开。",
+          causalHint: "你始终相信微小行动背后的蝴蝶效应，也亲手把理想活成了触手可及的现实。"
+        }
+      ]
+    }
+  ];
+
+  const BUTTERFLY_BLESSINGS = [
+    {
+      title: "✨ 窗前的温柔巧合",
+      text: "一只淡金色的小蝴蝶不知从哪儿飞过窗沿，轻轻停在阳光里一秒又乘风远去。你心里莫名涌起一股安静的勇气。",
+      stat: "curiosity",
+      bonus: 5
+    },
+    {
+      title: "✨ 风带来的小小回响",
+      text: "微风吹动树梢，一只带着花香的小蝴蝶掠过你的指尖。仿佛听见未来的自己轻轻说了一声：“这样选，很好呀。”",
+      stat: "warmth",
+      bonus: 5
+    },
+    {
+      title: "✨ 阳光里的金色翅膀",
+      text: "一道暖阳穿过云缝，一只发光的小蝴蝶在前方引路般飞过半圈。你忽然觉得，平凡的日子里也藏着秘密的魔法。",
+      stat: "kindness",
+      bonus: 5
+    },
+    {
+      title: "✨ 远方海风的轻语",
+      text: "一只浅蓝带金纹的小蝴蝶顺着风势越飞越高，似乎正把你今天的微小决定，带去很远很远的以后。",
+      stat: "vision",
+      bonus: 5
+    }
+  ];
+
+  /* =========================================================
+     3. STATE & STORAGE
+     ========================================================= */
+  const STORAGE_KEY = "little_butterfly_unlocked_v2";
+  const state = {
+    view: "landing", // landing | story | report
+    gender: "girl",  // girl | boy
+    chapterIdx: 0,
+    phase: "choice", // choice | reflection
+    stats: { curiosity: 15, kindness: 15, warmth: 15, vision: 15 },
+    memories: [],
+    currentReflection: null,
+    currentEnding: null,
+    unlocked: loadUnlocked(),
+    previewEndingId: null
+  };
+
+  function loadUnlocked() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "object" && parsed ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveUnlocked() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.unlocked));
+    } catch {}
+  }
+
+  function getUnlockedCount() {
+    return Object.keys(state.unlocked).length;
+  }
+
+  /* =========================================================
+     4. WEB AUDIO API HEALING MUSIC BOX / PIANO BGM & SFX
+     ========================================================= */
+  const AudioEngine = (() => {
+    let ctx = null;
+    let isPlaying = false;
+    let timer = null;
+    let step = 0;
+
+    // Warm Japanese healing pentatonic melody (F major / D minor nostalgic vibe)
+    const melody = [
+      523.25, 659.25, 587.33, 440.00,
+      392.00, 440.00, 523.25, 0,
+      587.33, 659.25, 783.99, 659.25,
+      587.33, 523.25, 440.00, 0,
+      440.00, 523.25, 587.33, 659.25,
+      523.25, 440.00, 392.00, 0,
+      349.23, 440.00, 523.25, 587.33,
+      523.25, 0, 392.00, 0
+    ];
+    const bass = [
+      174.61, 0, 0, 0,
+      196.00, 0, 0, 0,
+      220.00, 0, 0, 0,
+      164.81, 0, 0, 0,
+      174.61, 0, 0, 0,
+      196.00, 0, 0, 0,
+      146.83, 0, 0, 0,
+      196.00, 0, 0, 0
+    ];
+
+    function ensureCtx() {
+      if (!ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) ctx = new AudioCtx();
+      }
+      if (ctx && ctx.state === "suspended") {
+        ctx.resume();
+      }
+    }
+
+    function playNote(freq, dur, vol, type = "sine", delay = 0) {
+      if (!ctx || !freq) return;
+      const now = ctx.currentTime + delay;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(vol, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + dur + 0.05);
+    }
+
+    function tick() {
+      if (!isPlaying) return;
+      const m = melody[step % melody.length];
+      const b = bass[step % bass.length];
+      if (m) {
+        playNote(m, 1.35, 0.032, "sine");
+        playNote(m * 2, 0.85, 0.009, "triangle");
+      }
+      if (b) {
+        playNote(b, 2.2, 0.028, "triangle");
+      }
+      step++;
+    }
+
+    function start() {
+      ensureCtx();
+      if (!ctx || isPlaying) return;
+      isPlaying = true;
+      tick();
+      timer = setInterval(tick, 680);
+      syncAudioButtons();
+    }
+
+    function stop() {
+      isPlaying = false;
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      syncAudioButtons();
+    }
+
+    function toggle() {
+      if (isPlaying) stop();
+      else start();
+    }
+
+    function sfxClick() {
+      if (!isPlaying) return;
+      ensureCtx();
+      playNote(587.33, 0.22, 0.03, "sine", 0);
+      playNote(880.00, 0.3, 0.022, "triangle", 0.05);
+    }
+
+    function sfxButterfly() {
+      if (!isPlaying) return;
+      ensureCtx();
+      [659.25, 783.99, 1046.5].forEach((f, i) => {
+        playNote(f, 0.55, 0.028, "sine", i * 0.09);
+      });
+    }
+
+    function sfxEnding() {
+      if (!isPlaying) return;
+      ensureCtx();
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+        playNote(f, 1.1, 0.034, "sine", i * 0.12);
+      });
+    }
+
+    return { start, stop, toggle, sfxClick, sfxButterfly, sfxEnding, isOn: () => isPlaying };
+  })();
+
+  function syncAudioButtons() {
+    const on = AudioEngine.isOn();
+    const lBtn = document.getElementById("landing-audio-btn");
+    const lIcon = document.getElementById("landing-audio-icon");
+    const lText = document.getElementById("landing-audio-text");
+    const sBtn = document.getElementById("story-audio-btn");
+
+    lIcon.textContent = on ? "🔊" : "🔇";
+    lText.textContent = on ? "音乐已开" : "音乐已关";
+    lBtn.classList.toggle("audio-on", on);
+
+    sBtn.textContent = on ? "🔊" : "🔇";
+    sBtn.classList.toggle("audio-on", on);
+  }
+
+  /* =========================================================
+     5. AMBIENT FLOATING PETALS & GLOWING BUTTERFLIES CANVAS
+     ========================================================= */
+  function initAmbientCanvas() {
+    const canvas = document.getElementById("ambient-canvas");
+    const ctx = canvas.getContext("2d");
+    let w = 0, h = 0;
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    const petals = Array.from({ length: 18 }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      size: 4 + Math.random() * 6,
+      vx: -0.35 - Math.random() * 0.55,
+      vy: 0.45 + Math.random() * 0.65,
+      rot: Math.random() * Math.PI * 2,
+      vrot: (Math.random() - 0.5) * 0.03,
+      alpha: 0.25 + Math.random() * 0.4
+    }));
+
+    const butterflies = Array.from({ length: 5 }, (_, i) => ({
+      x: Math.random() * w,
+      y: 80 + Math.random() * (h * 0.7),
+      vx: (i % 2 === 0 ? 1 : -1) * (0.45 + Math.random() * 0.45),
+      phase: Math.random() * Math.PI * 2,
+      size: 6 + Math.random() * 4.5,
+      hue: i % 2 === 0 ? "rgba(255, 214, 102," : "rgba(255, 190, 145,"
+    }));
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+
+      // Petals
+      for (const p of petals) {
+        p.x += p.vx + Math.sin(p.y * 0.01) * 0.35;
+        p.y += p.vy;
+        p.rot += p.vrot;
+        if (p.y > h + 20) { p.y = -20; p.x = Math.random() * w; }
+        if (p.x < -20) { p.x = w + 20; }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = `rgba(255, 182, 198, ${p.alpha})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Glowing butterflies
+      for (const b of butterflies) {
+        b.phase += 0.09;
+        b.x += b.vx;
+        b.y += Math.sin(b.phase * 0.45) * 0.65;
+        if (b.x > w + 40) b.x = -40;
+        if (b.x < -40) b.x = w + 40;
+
+        const wing = 0.35 + Math.abs(Math.sin(b.phase)) * 0.65;
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.shadowColor = "rgba(255, 206, 86, 0.7)";
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = b.hue + "0.68)";
+        // Left & right wings
+        ctx.beginPath();
+        ctx.ellipse(-b.size * 0.55, -2, b.size * wing, b.size * 0.65, -0.35, 0, Math.PI * 2);
+        ctx.ellipse(b.size * 0.55, -2, b.size * wing, b.size * 0.65, 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  /* =========================================================
+     6. PROCEDURAL JAPANESE HEALING SVG ART ENGINE
+     (Supports Girl/Boy + Age-appropriate outfits + 10 Scenes + 10 Emblems)
+     ========================================================= */
+  function characterSvg(gender, age, x, y, scale = 1, flip = false) {
+    const isGirl = gender === "girl";
+    const stage = age <= 12 ? "kid" : age <= 18 ? "teen" : "adult";
+    const hairColor = isGirl ? "#5d4337" : "#3a3538";
+    const outfitTop =
+      stage === "kid" ? (isGirl ? "#4f6282" : "#53708e") :
+      stage === "teen" ? (isGirl ? "#3d4e70" : "#3e485c") :
+      (isGirl ? "#d88a76" : "#5d746e");
+    const outfitBottom = isGirl ? "#404b69" : "#3f4654";
+    const scarfColor = isGirl ? "#e36c5b" : "#d98d3c";
+
+    const dir = flip ? -1 : 1;
+    return `
+      <g transform="translate(${x}, ${y}) scale(${scale * dir}, ${scale})">
+        <!-- Soft Shadow -->
+        <ellipse cx="0" cy="112" rx="34" ry="8" fill="rgba(78, 55, 38, 0.16)" />
+        <!-- Back Hair (girl) -->
+        ${isGirl ? `<path d="M-26,-52 C-38,-20 -36,12 -24,24 L24,24 C36,12 38,-20 26,-52 Z" fill="${hairColor}" />` : ""}
+        <!-- Legs -->
+        <rect x="-13" y="58" width="9" height="48" rx="4.5" fill="#f7d7c2" />
+        <rect x="4" y="58" width="9" height="48" rx="4.5" fill="#f7d7c2" />
+        <!-- Socks / Pants -->
+        ${isGirl
+          ? `<rect x="-13" y="76" width="9" height="28" rx="3" fill="#464d60" />
+             <rect x="4" y="76" width="9" height="28" rx="3" fill="#464d60" />`
+          : `<rect x="-15" y="52" width="12" height="52" rx="4" fill="${outfitBottom}" />
+             <rect x="3" y="52" width="12" height="52" rx="4" fill="${outfitBottom}" />`
+        }
+        <!-- Shoes -->
+        <ellipse cx="-9" cy="107" rx="9" ry="4.5" fill="#4b3e3b" />
+        <ellipse cx="9" cy="107" rx="9" ry="4.5" fill="#4b3e3b" />
+        <!-- Skirt or Coat Hem -->
+        ${isGirl
+          ? `<path d="M-20,34 L20,34 L30,72 Q0,78 -30,72 Z" fill="${outfitBottom}" />`
+          : `<rect x="-20" y="34" width="40" height="26" rx="6" fill="${outfitTop}" />`
+        }
+        <!-- Backpack (for kid/teen) -->
+        ${stage !== "adult" ? `<rect x="14" y="-8" width="19" height="36" rx="7" fill="#6b758a" />
+        <circle cx="29" cy="22" r="5" fill="#f2b866" />` : ""}
+        <!-- Torso -->
+        <path d="M-20,-10 C-20,-18 20,-18 20,-10 L23,36 L-23,36 Z" fill="${outfitTop}" />
+        <!-- Collar & Ribbon/Tie -->
+        <path d="M-12,-14 L0,-2 L12,-14 Z" fill="#fffaf4" />
+        ${isGirl
+          ? `<path d="M-2,-4 L-12,6 L-4,9 L0,1 L4,9 L12,6 L2,-4 Z" fill="${scarfColor}" />`
+          : `<path d="M-3,-4 L3,-4 L5,12 L0,17 L-5,12 Z" fill="${scarfColor}" />`
+        }
+        <!-- Arms -->
+        <path d="M-20,-6 Q-31,14 -21,30" stroke="${outfitTop}" stroke-width="11" stroke-linecap="round" fill="none" />
+        <path d="M20,-6 Q31,14 21,30" stroke="${outfitTop}" stroke-width="11" stroke-linecap="round" fill="none" />
+        <circle cx="-21" cy="31" r="5" fill="#f9dcc7" />
+        <circle cx="21" cy="31" r="5" fill="#f9dcc7" />
+        <!-- Neck & Head -->
+        <rect x="-5" y="-22" width="10" height="12" rx="4" fill="#f5cfb7" />
+        <circle cx="0" cy="-42" r="24" fill="#fce1cd" />
+        <!-- Hair Top & Bangs -->
+        ${isGirl
+          ? `<path d="M-25,-44 C-26,-70 26,-70 25,-44 C20,-54 12,-56 5,-47 C0,-56 -8,-55 -14,-46 C-18,-52 -22,-50 -25,-44 Z" fill="${hairColor}" />
+             <path d="M-26,-44 C-32,-26 -30,-8 -20,4" stroke="${hairColor}" stroke-width="7" stroke-linecap="round" fill="none" />
+             <path d="M26,-44 C32,-26 30,-8 20,4" stroke="${hairColor}" stroke-width="7" stroke-linecap="round" fill="none" />`
+          : `<path d="M-25,-44 C-27,-72 27,-72 25,-44 C20,-56 12,-54 7,-46 C1,-56 -8,-56 -14,-46 C-19,-53 -22,-51 -25,-44 Z" fill="${hairColor}" />
+             <path d="M-12,-66 Q0,-75 11,-65" stroke="${hairColor}" stroke-width="5" stroke-linecap="round" fill="none" />`
+        }
+        <!-- Happy Anime Face -->
+        <path d="M-12,-42 Q-8,-47 -4,-42" stroke="#3b2d26" stroke-width="2.4" stroke-linecap="round" fill="none" />
+        <path d="M4,-42 Q8,-47 12,-42" stroke="#3b2d26" stroke-width="2.4" stroke-linecap="round" fill="none" />
+        <ellipse cx="-13" cy="-35" rx="4" ry="2.2" fill="#f59898" opacity="0.55" />
+        <ellipse cx="13" cy="-35" rx="4" ry="2.2" fill="#f59898" opacity="0.55" />
+        <path d="M-6,-33 Q0,-26 6,-33 Z" fill="#e27d70" />
+      </g>
+    `;
+  }
+
+  function renderLandingHeroArt(gender) {
+    const box = document.getElementById("landing-bg-art");
+    box.innerHTML = `
+      <svg viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="heroSky" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#fff4e9"/>
+            <stop offset="45%" stop-color="#eef5ff"/>
+            <stop offset="78%" stop-color="#d4e6ff"/>
+            <stop offset="100%" stop-color="#f7dff2"/>
+          </linearGradient>
+          <linearGradient id="heroSea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c3defc"/>
+            <stop offset="100%" stop-color="#e5f0ff"/>
+          </linearGradient>
+          <linearGradient id="heroHill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#cfe0b3"/>
+            <stop offset="100%" stop-color="#9cb980"/>
+          </linearGradient>
+          <radialGradient id="sunGlow" cx="65%" cy="22%" r="40%">
+            <stop offset="0%" stop-color="#fff8d6" stop-opacity="0.95"/>
+            <stop offset="55%" stop-color="#ffe5be" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#ffe5be" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- Sky & Sun Glow -->
+        <rect width="1200" height="720" fill="url(#heroSky)"/>
+        <rect width="1200" height="720" fill="url(#sunGlow)"/>
+
+        <!-- Soft Clouds -->
+        <g opacity="0.72" fill="#ffffff">
+          <ellipse cx="760" cy="120" rx="130" ry="34"/>
+          <ellipse cx="840" cy="108" rx="95" ry="28"/>
+          <ellipse cx="1060" cy="165" rx="140" ry="36"/>
+          <ellipse cx="560" cy="190" rx="110" ry="26"/>
+        </g>
+
+        <!-- Distant Ocean & Coastal Town -->
+        <rect x="0" y="385" width="1200" height="170" fill="url(#heroSea)" opacity="0.85"/>
+        <!-- Sparkling Sea Lines -->
+        <g stroke="#ffffff" stroke-width="2" opacity="0.55">
+          <line x1="560" y1="420" x2="650" y2="420"/>
+          <line x1="690" y1="445" x2="770" y2="445"/>
+          <line x1="500" y1="468" x2="610" y2="468"/>
+        </g>
+
+        <!-- Far Mountains -->
+        <path d="M200,415 Q420,315 680,395 Q850,330 1200,375 L1200,450 L200,450 Z" fill="#c7d8e8" opacity="0.65"/>
+
+        <!-- Coastal Town Silhouettes -->
+        <g fill="#f7f1ea" stroke="#d9cfc5" stroke-width="1.5" opacity="0.85">
+          <rect x="440" y="452" width="46" height="58" rx="3"/>
+          <rect x="495" y="472" width="38" height="44" rx="3"/>
+          <rect x="545" y="444" width="54" height="68" rx="3"/>
+          <rect x="612" y="465" width="42" height="50" rx="3"/>
+          <polygon points="436,454 463,435 490,454" fill="#df9b8d"/>
+          <polygon points="541,446 572,424 603,446" fill="#9fb9d4"/>
+        </g>
+
+        <!-- Rolling Sakura Hill -->
+        <path d="M320,720 Q610,490 860,465 Q1060,445 1200,490 L1200,720 Z" fill="url(#heroHill)"/>
+        <path d="M470,720 Q720,560 980,535 Q1110,525 1200,565 L1200,720 Z" fill="#b7cc94" opacity="0.72"/>
+        <!-- Winding Path -->
+        <path d="M770,720 Q855,610 950,565 Q1040,525 1130,525" stroke="#efe2cd" stroke-width="46" stroke-linecap="round" fill="none" opacity="0.75"/>
+
+        <!-- Blooming Sakura Trees -->
+        <g>
+          <path d="M1115,570 Q1128,450 1165,360" stroke="#7d5c50" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <path d="M1132,465 Q1075,410 1030,395" stroke="#7d5c50" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <g fill="#ffc9d9" opacity="0.92">
+            <circle cx="1150" cy="330" r="78"/>
+            <circle cx="1075" cy="365" r="64"/>
+            <circle cx="1195" cy="385" r="72"/>
+            <circle cx="1025" cy="405" r="48"/>
+            <circle cx="1120" cy="415" r="56"/>
+          </g>
+          <g fill="#ffe3ec" opacity="0.85">
+            <circle cx="1135" cy="315" r="46"/>
+            <circle cx="1062" cy="355" r="38"/>
+            <circle cx="1182" cy="368" r="42"/>
+          </g>
+          <!-- Smaller mid-hill sakura -->
+          <g fill="#ffd2e0" opacity="0.82">
+            <circle cx="775" cy="515" r="44"/>
+            <circle cx="818" cy="502" r="36"/>
+            <circle cx="742" cy="532" r="30"/>
+          </g>
+        </g>
+
+        <!-- Protagonist Standing on the Sakura Hill -->
+        ${characterSvg(gender, 14, 965, 428, 1.95, false)}
+
+        <!-- Glowing Golden Butterflies -->
+        <g opacity="0.92">
+          <g transform="translate(1095, 195) rotate(-14)">
+            <ellipse cx="-12" cy="0" rx="14" ry="9" fill="#ffe680" opacity="0.9"/>
+            <ellipse cx="12" cy="0" rx="14" ry="9" fill="#fff0a8" opacity="0.9"/>
+          </g>
+          <g transform="translate(1080, 520) rotate(12) scale(1.25)">
+            <ellipse cx="-14" cy="0" rx="16" ry="10" fill="#ffe070" opacity="0.85"/>
+            <ellipse cx="14" cy="0" rx="16" ry="10" fill="#fff3b5" opacity="0.9"/>
+          </g>
+          <g transform="translate(815, 250) rotate(-8) scale(0.7)">
+            <ellipse cx="-12" cy="0" rx="13" ry="8" fill="#ffe98f" opacity="0.8"/>
+            <ellipse cx="12" cy="0" rx="13" ry="8" fill="#fff5c0" opacity="0.8"/>
+          </g>
+        </g>
+
+        <!-- Foreground Wildflowers -->
+        <g>
+          <circle cx="1055" cy="645" r="6" fill="#ffbe55"/>
+          <circle cx="1088" cy="662" r="5" fill="#fff3b0"/>
+          <circle cx="1142" cy="632" r="7" fill="#ffa3b8"/>
+          <circle cx="885" cy="665" r="5" fill="#ffbe55"/>
+        </g>
+      </svg>
+    `;
+  }
+
+  function renderSceneArt(sceneKey, gender, age) {
+    const charLeft = characterSvg(gender, age, 165, 215, 1.15, false);
+    const charCenter = characterSvg(gender, age, 300, 222, 1.18, false);
+    const charRight = characterSvg(gender, age, 420, 218, 1.16, true);
+
+    const scenes = {
+      classroom: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="clWall" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#f9ebd4"/>
+              <stop offset="100%" stop-color="#e9cda9"/>
+            </linearGradient>
+            <linearGradient id="sunBeam" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#fff8d6" stop-opacity="0.65"/>
+              <stop offset="100%" stop-color="#fff8d6" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#clWall)"/>
+          <!-- Classroom Floor -->
+          <rect x="0" y="305" width="640" height="135" fill="#c99d70"/>
+          <!-- Bright Windows Left -->
+          <rect x="28" y="45" width="165" height="215" rx="6" fill="#fff7dd" stroke="#9d6d43" stroke-width="10"/>
+          <line x1="110" y1="45" x2="110" y2="260" stroke="#9d6d43" stroke-width="7"/>
+          <line x1="28" y1="150" x2="193" y2="150" stroke="#9d6d43" stroke-width="7"/>
+          <!-- Sunbeam -->
+          <polygon points="35,55 190,55 460,440 160,440" fill="url(#sunBeam)"/>
+          <!-- Green Chalkboard -->
+          <rect x="255" y="72" width="320" height="145" rx="6" fill="#3b6352" stroke="#8b5e3c" stroke-width="10"/>
+          <text x="320" y="128" fill="#eaf5ee" font-size="22" font-family="Noto Sans SC, sans-serif" opacity="0.88">新学期 · 早上好</text>
+          <line x1="295" y1="158" x2="430" y2="158" stroke="#eaf5ee" stroke-width="2.5" opacity="0.5"/>
+          <line x1="295" y1="178" x2="395" y2="178" stroke="#eaf5ee" stroke-width="2.5" opacity="0.4"/>
+          <!-- Wall Clock -->
+          <circle cx="525" cy="40" r="18" fill="#fffaf0" stroke="#8b5e3c" stroke-width="3"/>
+          <line x1="525" y1="40" x2="525" y2="29" stroke="#534238" stroke-width="2"/>
+          <line x1="525" y1="40" x2="534" y2="43" stroke="#534238" stroke-width="2"/>
+          <!-- Protagonist & Desk -->
+          ${charLeft}
+          <!-- Wooden School Desk -->
+          <rect x="115" y="275" width="235" height="18" rx="4" fill="#b77f4d"/>
+          <rect x="135" y="293" width="14" height="105" fill="#8b5e3c"/>
+          <rect x="315" y="293" width="14" height="105" fill="#8b5e3c"/>
+          <!-- Open Notebook & Pink Eraser -->
+          <rect x="180" y="256" width="84" height="20" rx="3" fill="#fffdf8" stroke="#d9cbbd" stroke-width="1.5"/>
+          <rect x="278" y="264" width="24" height="11" rx="3" fill="#f398a8"/>
+          <!-- Teacher Silhouette at Chalkboard -->
+          <g transform="translate(510, 210) scale(0.88)">
+            <circle cx="0" cy="-42" r="18" fill="#f9dac5"/>
+            <path d="M-19,-44 C-18,-66 18,-66 19,-44 Z" fill="#4c3b35"/>
+            <path d="M-16,-18 L16,-18 L24,52 L-24,52 Z" fill="#8b7d72"/>
+          </g>
+        </svg>
+      `,
+      clock: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="atticBg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f7e3c4"/>
+              <stop offset="100%" stop-color="#dfba8c"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#atticBg)"/>
+          <!-- Attic Beams -->
+          <polygon points="0,0 180,0 0,150" fill="#a87447" opacity="0.45"/>
+          <polygon points="640,0 460,0 640,150" fill="#a87447" opacity="0.45"/>
+          <!-- Round Attic Window -->
+          <circle cx="495" cy="128" r="76" fill="#fff7d9" stroke="#8a5b36" stroke-width="10"/>
+          <line x1="495" y1="52" x2="495" y2="204" stroke="#8a5b36" stroke-width="6"/>
+          <line x1="419" y1="128" x2="571" y2="128" stroke="#8a5b36" stroke-width="6"/>
+          <!-- Protagonist -->
+          ${charLeft}
+          <!-- Workbench Table -->
+          <rect x="0" y="302" width="640" height="138" fill="#a97449"/>
+          <rect x="0" y="294" width="640" height="18" fill="#c58f5e"/>
+          <!-- Vintage Brass Alarm Clock -->
+          <g transform="translate(360, 245)">
+            <circle cx="-32" cy="-42" r="18" fill="#d99b38" stroke="#8f5d1a" stroke-width="4"/>
+            <circle cx="32" cy="-42" r="18" fill="#d99b38" stroke="#8f5d1a" stroke-width="4"/>
+            <circle cx="0" cy="0" r="54" fill="#e5ad49" stroke="#8f5d1a" stroke-width="6"/>
+            <circle cx="0" cy="0" r="42" fill="#fff8e8"/>
+            <!-- Gears inside -->
+            <circle cx="-12" cy="8" r="13" fill="none" stroke="#d28d28" stroke-width="4" stroke-dasharray="4 3"/>
+            <circle cx="14" cy="-6" r="10" fill="none" stroke="#c07a21" stroke-width="3.5" stroke-dasharray="3 3"/>
+            <line x1="0" y1="0" x2="0" y2="-26" stroke="#3c2f27" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="0" y1="0" x2="22" y2="8" stroke="#3c2f27" stroke-width="3" stroke-linecap="round"/>
+          </g>
+          <!-- Magnifying Glass -->
+          <g transform="translate(495, 290) rotate(-28)">
+            <circle cx="0" cy="0" r="24" fill="rgba(220, 242, 255, 0.65)" stroke="#7a5438" stroke-width="5"/>
+            <rect x="-4" y="24" width="8" height="36" rx="4" fill="#6d472c"/>
+          </g>
+        </svg>
+      `,
+      beach: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="beachSky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ffd8b5"/>
+              <stop offset="55%" stop-color="#ffecc8"/>
+              <stop offset="100%" stop-color="#c9e2fa"/>
+            </linearGradient>
+            <linearGradient id="beachSea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#6fa8d6"/>
+              <stop offset="100%" stop-color="#a8d1ec"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#beachSky)"/>
+          <!-- Setting Sun -->
+          <circle cx="485" cy="145" r="54" fill="#fff4c4" opacity="0.92"/>
+          <!-- Sea -->
+          <rect x="0" y="195" width="640" height="125" fill="url(#beachSea)"/>
+          <path d="M0,295 Q150,275 320,298 Q490,320 640,290 L640,440 L0,440 Z" fill="#f3d8b1"/>
+          <!-- White Foam Wave -->
+          <path d="M0,296 Q150,276 320,299 Q490,321 640,291" stroke="#ffffff" stroke-width="6" fill="none" opacity="0.8"/>
+          <!-- Lighthouse -->
+          <g transform="translate(95, 130)">
+            <rect x="-10" y="0" width="20" height="68" fill="#fffaf4"/>
+            <rect x="-10" y="18" width="20" height="12" fill="#e56a46"/>
+            <polygon points="-14,0 0,-16 14,0" fill="#e56a46"/>
+          </g>
+          <!-- Tidepool Rocks -->
+          <ellipse cx="475" cy="365" rx="75" ry="30" fill="#9a8d83"/>
+          <ellipse cx="535" cy="385" rx="58" ry="24" fill="#82776f"/>
+          <!-- Plastic Bottle & Cute Hermit Crab -->
+          <rect x="442" y="346" width="32" height="13" rx="5" fill="#c7e6ff" opacity="0.85" transform="rotate(-14 458 352)"/>
+          <circle cx="515" cy="355" r="9" fill="#4696e8"/>
+          <circle cx="525" cy="359" r="5" fill="#e77355"/>
+          <!-- Protagonist -->
+          ${charLeft}
+        </svg>
+      `,
+      track: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="trackSky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f7b486"/>
+              <stop offset="55%" stop-color="#ffd9b3"/>
+              <stop offset="100%" stop-color="#ffeccf"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#trackSky)"/>
+          <circle cx="145" cy="115" r="46" fill="#fff3c6" opacity="0.9"/>
+          <!-- School Building Silhouette -->
+          <rect x="340" y="140" width="265" height="90" rx="4" fill="#d9a589" opacity="0.72"/>
+          <!-- Green Field -->
+          <rect x="0" y="220" width="640" height="75" fill="#96b984"/>
+          <!-- Sunset Running Track -->
+          <polygon points="0,280 640,255 640,440 0,440" fill="#d67258"/>
+          <line x1="0" y1="318" x2="640" y2="296" stroke="#fff4e8" stroke-width="4" opacity="0.85"/>
+          <line x1="0" y1="364" x2="640" y2="345" stroke="#fff4e8" stroke-width="4" opacity="0.85"/>
+          <line x1="0" y1="410" x2="640" y2="395" stroke="#fff4e8" stroke-width="4" opacity="0.85"/>
+          <!-- Finish Tape -->
+          <line x1="510" y1="245" x2="510" y2="410" stroke="#ffffff" stroke-width="6" stroke-dasharray="10 6"/>
+          <!-- Protagonist Running -->
+          ${charCenter}
+          <!-- Relay Baton -->
+          <rect x="322" y="246" width="32" height="8" rx="4" fill="#ffcf4d" transform="rotate(-18 338 250)"/>
+        </svg>
+      `,
+      rain: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="rainSky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5d7290"/>
+              <stop offset="65%" stop-color="#8ea4be"/>
+              <stop offset="100%" stop-color="#b8c9db"/>
+            </linearGradient>
+            <radialGradient id="lampGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#ffe7a3" stop-opacity="0.85"/>
+              <stop offset="100%" stop-color="#ffe7a3" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#rainSky)"/>
+          <!-- Wet Street -->
+          <rect x="0" y="315" width="640" height="125" fill="#4f5f75"/>
+          <ellipse cx="145" cy="368" rx="70" ry="12" fill="#ffe4a1" opacity="0.32"/>
+          <!-- Glowing Streetlamp -->
+          <rect x="140" y="95" width="9" height="235" fill="#3a4556"/>
+          <circle cx="145" cy="95" r="78" fill="url(#lampGlow)"/>
+          <circle cx="145" cy="95" r="14" fill="#fff7d6"/>
+          <!-- Bus Stop Shelter -->
+          <rect x="275" y="155" width="275" height="14" rx="4" fill="#435266"/>
+          <rect x="292" y="169" width="8" height="160" fill="#435266"/>
+          <rect x="524" y="169" width="8" height="160" fill="#435266"/>
+          <rect x="305" y="175" width="214" height="125" fill="#d9e8f5" opacity="0.22"/>
+          <!-- Protagonist with Umbrella -->
+          ${charCenter}
+          <path d="M236,158 Q300,98 364,158 Z" fill="#e87a5d"/>
+          <line x1="300" y1="158" x2="300" y2="255" stroke="#4d3d35" stroke-width="3.5"/>
+          <!-- Gentle Diagonal Rain -->
+          <g stroke="#e6f2ff" stroke-width="1.8" opacity="0.48">
+            <line x1="70" y1="40" x2="55" y2="95"/><line x1="190" y1="60" x2="175" y2="115"/>
+            <line x1="310" y1="25" x2="295" y2="80"/><line x1="430" y1="50" x2="415" y2="105"/>
+            <line x1="560" y1="30" x2="545" y2="85"/><line x1="120" y1="180" x2="105" y2="235"/>
+            <line x1="490" y1="195" x2="475" y2="250"/><line x1="595" y1="170" x2="580" y2="225"/>
+          </g>
+        </svg>
+      `,
+      desk: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="nightWin" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#223154"/>
+              <stop offset="100%" stop-color="#475c8c"/>
+            </linearGradient>
+            <radialGradient id="deskLampLight" cx="50%" cy="35%" r="55%">
+              <stop offset="0%" stop-color="#ffe7ad" stop-opacity="0.72"/>
+              <stop offset="100%" stop-color="#ffe7ad" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="640" height="440" fill="#3a3342"/>
+          <!-- Starry Window -->
+          <rect x="65" y="42" width="235" height="205" rx="8" fill="url(#nightWin)" stroke="#6d584b" stroke-width="10"/>
+          <circle cx="115" cy="90" r="2.5" fill="#fff7c4"/><circle cx="165" cy="74" r="2" fill="#fff"/>
+          <circle cx="235" cy="108" r="3" fill="#fff5b8"/><circle cx="138" cy="148" r="2" fill="#fff"/>
+          <path d="M242,76 A18,18 0 1,1 224,94 A14,14 0 1,0 242,76 Z" fill="#fff4bd"/>
+          <!-- Warm Desk Lamp Glow -->
+          <circle cx="485" cy="245" r="190" fill="url(#deskLampLight)"/>
+          <!-- Protagonist -->
+          ${charCenter}
+          <!-- Study Desk -->
+          <rect x="0" y="302" width="640" height="138" fill="#8b6248"/>
+          <rect x="0" y="292" width="640" height="18" fill="#a8795b"/>
+          <!-- Lamp -->
+          <rect x="520" y="210" width="8" height="85" fill="#5e4b44"/>
+          <polygon points="488,215 556,215 542,175 502,175" fill="#f3c567"/>
+          <!-- Application Form & Ginkgo Bookmark -->
+          <rect x="215" y="280" width="130" height="32" rx="4" fill="#fffdf6"/>
+          <path d="M362,286 Q378,272 390,290 Q374,300 362,286 Z" fill="#f1b93e"/>
+        </svg>
+      `,
+      campus: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="autumnSky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c9e2fc"/>
+              <stop offset="100%" stop-color="#fff4db"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#autumnSky)"/>
+          <!-- Campus Path -->
+          <polygon points="210,250 430,250 610,440 30,440" fill="#efe2ce"/>
+          <rect x="0" y="245" width="640" height="195" fill="#d9c698" opacity="0.25"/>
+          <!-- Golden Ginkgo Trees -->
+          <g>
+            <rect x="82" y="185" width="18" height="145" fill="#7d5e49"/>
+            <circle cx="92" cy="145" r="72" fill="#f5c64f"/>
+            <circle cx="140" cy="175" r="46" fill="#f9d876"/>
+            <rect x="535" y="175" width="18" height="155" fill="#7d5e49"/>
+            <circle cx="542" cy="135" r="76" fill="#f2bc42"/>
+            <circle cx="485" cy="168" r="48" fill="#f9d876"/>
+          </g>
+          <!-- Club Booths -->
+          <rect x="135" y="232" width="102" height="58" rx="4" fill="#fff8ee" stroke="#c88d5d" stroke-width="4"/>
+          <rect x="130" y="220" width="112" height="16" rx="4" fill="#e56a46"/>
+          <rect x="405" y="232" width="102" height="58" rx="4" fill="#fff8ee" stroke="#c88d5d" stroke-width="4"/>
+          <rect x="400" y="220" width="112" height="16" rx="4" fill="#2f977b"/>
+          <!-- Protagonist -->
+          ${charCenter}
+          <!-- Falling Ginkgo Leaves -->
+          <g fill="#f5be3d">
+            <circle cx="220" cy="140" r="6"/><circle cx="385" cy="122" r="5"/>
+            <circle cx="265" cy="365" r="6"/><circle cx="435" cy="382" r="6"/>
+          </g>
+        </svg>
+      `,
+      rooftop: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="roofSky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#6975ad"/>
+              <stop offset="50%" stop-color="#cfa0bd"/>
+              <stop offset="100%" stop-color="#ffd5b8"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#roofSky)"/>
+          <!-- City Skyline -->
+          <g fill="#4f567a" opacity="0.82">
+            <rect x="35" y="185" width="58" height="145"/><rect x="108" y="145" width="66" height="185"/>
+            <rect x="192" y="205" width="52" height="125"/><rect x="395" y="158" width="70" height="172"/>
+            <rect x="482" y="125" width="64" height="205"/><rect x="558" y="190" width="62" height="140"/>
+          </g>
+          <!-- Glowing City Lights -->
+          <g fill="#ffe9a6" opacity="0.85">
+            <rect x="122" y="168" width="8" height="10"/><rect x="142" y="192" width="8" height="10"/>
+            <rect x="415" y="184" width="8" height="10"/><rect x="498" y="152" width="8" height="10"/>
+            <rect x="518" y="176" width="8" height="10"/><rect x="58" y="210" width="8" height="10"/>
+          </g>
+          <!-- Rooftop Fence & Floor -->
+          <rect x="0" y="318" width="640" height="122" fill="#8b828e"/>
+          <line x1="0" y1="262" x2="640" y2="262" stroke="#dce0ea" stroke-width="5"/>
+          <line x1="0" y1="292" x2="640" y2="292" stroke="#dce0ea" stroke-width="3"/>
+          <!-- Protagonist -->
+          ${charCenter}
+        </svg>
+      `,
+      store: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="storeNight" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#212a3d"/>
+              <stop offset="100%" stop-color="#394661"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#storeNight)"/>
+          <!-- Sidewalk -->
+          <rect x="0" y="335" width="640" height="105" fill="#464d5e"/>
+          <!-- Glowing Convenience Storefront -->
+          <rect x="90" y="90" width="460" height="250" rx="10" fill="#fff4d8" stroke="#53607a" stroke-width="6"/>
+          <!-- Store Signboard -->
+          <rect x="90" y="90" width="460" height="42" fill="#3b9a7f"/>
+          <rect x="90" y="128" width="460" height="10" fill="#eb734e"/>
+          <text x="235" y="118" fill="#ffffff" font-size="18" font-weight="700" font-family="Noto Sans SC, sans-serif">24H 街角便利店</text>
+          <!-- Warm Light Spilling Outside -->
+          <polygon points="105,340 535,340 600,440 40,440" fill="#ffe8aa" opacity="0.26"/>
+          <!-- Protagonist Inside Window -->
+          ${charRight}
+          <!-- Steaming Hot Cup -->
+          <rect x="242" y="286" width="26" height="34" rx="4" fill="#eb734e"/>
+          <path d="M250,278 Q246,265 253,256" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.75"/>
+          <path d="M262,278 Q258,265 265,256" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.75"/>
+          <!-- Golden Night Butterfly on Window -->
+          <g transform="translate(205, 222) rotate(-18)">
+            <ellipse cx="-11" cy="0" rx="13" ry="8" fill="#ffe173"/>
+            <ellipse cx="11" cy="0" rx="13" ry="8" fill="#fff2b5"/>
+          </g>
+        </svg>
+      `,
+      hill: `
+        <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="hillSky" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#ffeef3"/>
+              <stop offset="50%" stop-color="#dceeff"/>
+              <stop offset="100%" stop-color="#fff4db"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="440" fill="url(#hillSky)"/>
+          <!-- Sea Horizon -->
+          <rect x="0" y="230" width="640" height="80" fill="#b7daf8"/>
+          <!-- Spring Hill -->
+          <path d="M0,335 Q240,255 460,290 Q570,308 640,280 L640,440 L0,440 Z" fill="#b4cf91"/>
+          <!-- Sakura Canopy -->
+          <g fill="#ffc7d8" opacity="0.92">
+            <circle cx="85" cy="115" r="85"/><circle cx="170" cy="145" r="56"/>
+            <circle cx="555" cy="115" r="90"/><circle cx="475" cy="150" r="58"/>
+          </g>
+          <g fill="#ffe3ec" opacity="0.82">
+            <circle cx="70" cy="105" r="46"/><circle cx="565" cy="105" r="52"/>
+          </g>
+          <!-- Protagonist at Age 26 -->
+          ${charCenter}
+          <!-- Glowing Butterflies -->
+          <g transform="translate(415, 165) rotate(-12)">
+            <ellipse cx="-12" cy="0" rx="14" ry="9" fill="#ffe275"/>
+            <ellipse cx="12" cy="0" rx="14" ry="9" fill="#fff4bd"/>
+          </g>
+          <g transform="translate(210, 195) rotate(14) scale(0.8)">
+            <ellipse cx="-12" cy="0" rx="14" ry="9" fill="#ffe275"/>
+            <ellipse cx="12" cy="0" rx="14" ry="9" fill="#fff4bd"/>
+          </g>
+        </svg>
+      `
+    };
+
+    return scenes[sceneKey] || scenes.hill;
+  }
+
+  function renderEndingEmblem(endingId, size = 112) {
+    const emblems = {
+      astronaut: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="#21469c"/>
+          <circle cx="60" cy="60" r="44" fill="none" stroke="#8bb5ff" stroke-width="3" opacity="0.5"/>
+          <ellipse cx="60" cy="62" rx="34" ry="12" fill="none" stroke="#ffbe4f" stroke-width="5" transform="rotate(-22 60 62)"/>
+          <circle cx="60" cy="60" r="19" fill="#38c8a7"/>
+          <path d="M46,56 Q60,46 74,56" fill="#6ee7c8" opacity="0.6"/>
+          <circle cx="86" cy="36" r="4" fill="#ffe785"/>
+          <circle cx="34" cy="40" r="2.5" fill="#fff"/>
+        </svg>
+      `,
+      clockmaker: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#f7e3c2"/>
+          <circle cx="60" cy="60" r="38" fill="#e19d3e" stroke="#8a561c" stroke-width="5"/>
+          <circle cx="60" cy="60" r="28" fill="#fffaf0"/>
+          <circle cx="52" cy="64" r="9" fill="none" stroke="#d18426" stroke-width="3.5" stroke-dasharray="3 2"/>
+          <line x1="60" y1="60" x2="60" y2="41" stroke="#3f2d21" stroke-width="3.5" stroke-linecap="round"/>
+          <line x1="60" y1="60" x2="75" y2="66" stroke="#3f2d21" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      `,
+      ocean_guardian: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#d9f5f0"/>
+          <path d="M18,70 Q40,52 62,68 Q84,84 102,64 L102,98 Q60,114 18,98 Z" fill="#189885"/>
+          <path d="M22,78 Q45,62 68,76 Q86,86 100,74" stroke="#ffffff" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <circle cx="62" cy="40" r="14" fill="#ffcf6b"/>
+        </svg>
+      `,
+      teacher: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#ffefe5"/>
+          <polygon points="32,74 88,36 68,86 58,68" fill="#e77049"/>
+          <polygon points="58,68 88,36 48,64" fill="#f5a578"/>
+          <circle cx="40" cy="40" r="5" fill="#f4be44"/>
+          <circle cx="84" cy="76" r="4" fill="#f4be44"/>
+        </svg>
+      `,
+      doctor: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#ffecec"/>
+          <rect x="48" y="30" width="24" height="60" rx="6" fill="#e46158"/>
+          <rect x="30" y="48" width="60" height="24" rx="6" fill="#e46158"/>
+          <path d="M52,58 Q60,48 68,58 Q60,72 52,58 Z" fill="#fff"/>
+        </svg>
+      `,
+      illustrator: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#ffeef4"/>
+          <ellipse cx="58" cy="64" rx="34" ry="26" fill="#f6c78d"/>
+          <circle cx="44" cy="54" r="6" fill="#e86a7c"/>
+          <circle cx="60" cy="48" r="6" fill="#f2b844"/>
+          <circle cx="75" cy="58" r="6" fill="#5294e8"/>
+          <circle cx="66" cy="74" r="6" fill="#32a885"/>
+          <circle cx="46" cy="72" r="5" fill="#ffeef4"/>
+        </svg>
+      `,
+      baker: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#fff5df"/>
+          <ellipse cx="60" cy="72" rx="34" ry="18" fill="#df913b"/>
+          <path d="M38,68 Q60,44 82,68" fill="#f2b35e"/>
+          <path d="M48,46 Q45,35 52,29" stroke="#e49a4c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M62,44 Q59,33 66,27" stroke="#e49a4c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M75,46 Q72,35 79,29" stroke="#e49a4c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      `,
+      director: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#f0edff"/>
+          <rect x="28" y="42" width="52" height="36" rx="8" fill="#6758d1"/>
+          <polygon points="80,52 98,42 98,78 80,68" fill="#897ce8"/>
+          <circle cx="52" cy="60" r="11" fill="#fff" opacity="0.9"/>
+          <circle cx="52" cy="60" r="5" fill="#6758d1"/>
+        </svg>
+      `,
+      musician: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#e6f7fa"/>
+          <path d="M52,78 L52,36 L84,28 L84,68" stroke="#248499" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <ellipse cx="44" cy="80" rx="11" ry="8" fill="#248499"/>
+          <ellipse cx="76" cy="70" rx="11" ry="8" fill="#248499"/>
+        </svg>
+      `,
+      traveler: `
+        <svg width="${size}" height="${size}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="#e9f6ee"/>
+          <circle cx="60" cy="60" r="34" fill="#fff" stroke="#3c7d5a" stroke-width="5"/>
+          <polygon points="60,34 68,60 60,86 52,60" fill="#e66c47"/>
+          <polygon points="60,60 68,60 60,86 52,60" fill="#3c7d5a"/>
+          <circle cx="60" cy="60" r="4" fill="#fff"/>
+        </svg>
+      `
+    };
+    return emblems[endingId] || emblems.astronaut;
+  }
+
+  /* =========================================================
+     7. ENDING CALCULATION & RADAR CHART
+     ========================================================= */
+  function computeEnding(stats) {
+    const entries = Object.entries(stats)
+      .map(([key, val]) => ({ key, val }))
+      .sort((a, b) => b.val - a.val);
+
+    const [first, second, , fourth] = entries;
+    let endingId = "traveler";
+
+    // Balanced endings if spread is narrow
+    if (first.val - fourth.val <= 24) {
+      if ((stats.warmth + stats.kindness) >= (stats.curiosity + stats.vision)) {
+        endingId = "musician";
+      } else {
+        endingId = "traveler";
+      }
+    } else {
+      const f = first.key;
+      const s = second.key;
+      if (f === "curiosity") {
+        if (s === "vision") endingId = "astronaut";
+        else if (s === "warmth") endingId = "clockmaker";
+        else endingId = (first.val - second.val > 18) ? "astronaut" : "doctor";
+      } else if (f === "vision") {
+        if (s === "curiosity") endingId = "ocean_guardian";
+        else if (s === "kindness") endingId = "teacher";
+        else endingId = "director";
+      } else if (f === "kindness") {
+        if (s === "curiosity") endingId = "doctor";
+        else if (s === "warmth") endingId = "illustrator";
+        else endingId = "teacher";
+      } else if (f === "warmth") {
+        if (s === "kindness") endingId = "baker";
+        else if (s === "vision") endingId = "director";
+        else endingId = "clockmaker";
+      }
+    }
+
+    return ENDINGS.find(e => e.id === endingId) || ENDINGS[0];
+  }
+
+  function renderRadarSvg(stats) {
+    const maxVal = Math.max(110, ...Object.values(stats));
+    const cx = 125, cy = 115, r = 74;
+    const axes = [
+      { key: "curiosity", label: "求知力", angle: -Math.PI / 2, color: STAT_META.curiosity.color },
+      { key: "vision",    label: "格局观", angle: 0,            color: STAT_META.vision.color },
+      { key: "warmth",    label: "温情度", angle: Math.PI / 2,  color: STAT_META.warmth.color },
+      { key: "kindness",  label: "善意值", angle: Math.PI,      color: STAT_META.kindness.color }
+    ];
+
+    const gridPolygons = [0.33, 0.66, 1].map(scale => {
+      const pts = axes.map(a =>
+        `${(cx + Math.cos(a.angle) * r * scale).toFixed(1)},${(cy + Math.sin(a.angle) * r * scale).toFixed(1)}`
+      ).join(" ");
+      return `<polygon points="${pts}" fill="none" stroke="#e8ddd0" stroke-width="1.2" />`;
+    }).join("");
+
+    const dataPts = axes.map(a => {
+      const ratio = Math.max(0.16, Math.min(1, stats[a.key] / maxVal));
+      return {
+        x: cx + Math.cos(a.angle) * r * ratio,
+        y: cy + Math.sin(a.angle) * r * ratio,
+        color: a.color
+      };
+    });
+
+    const polyStr = dataPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+
+    return `
+      <svg width="250" height="225" viewBox="0 0 250 225">
+        ${gridPolygons}
+        <line x1="${cx}" y1="${cy - r}" x2="${cx}" y2="${cy + r}" stroke="#eadfd2" stroke-width="1"/>
+        <line x1="${cx - r}" y1="${cy}" x2="${cx + r}" y2="${cy}" stroke="#eadfd2" stroke-width="1"/>
+        <polygon points="${polyStr}" fill="rgba(229, 106, 70, 0.18)" stroke="#e56a46" stroke-width="2.4" stroke-linejoin="round"/>
+        ${dataPts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="${p.color}" stroke="#fff" stroke-width="1.8"/>`).join("")}
+        <text x="${cx}" y="${cy - r - 12}" text-anchor="middle" font-size="12" font-weight="700" fill="#3b76f6">求知力</text>
+        <text x="${cx + r + 10}" y="${cy + 4}" text-anchor="start" font-size="12" font-weight="700" fill="#1e9c7a">格局观</text>
+        <text x="${cx}" y="${cy + r + 20}" text-anchor="middle" font-size="12" font-weight="700" fill="#ea9a28">温情度</text>
+        <text x="${cx - r - 10}" y="${cy + 4}" text-anchor="end" font-size="12" font-weight="700" fill="#e76755">善意值</text>
+      </svg>
+    `;
+  }
+
+  /* =========================================================
+     8. UI RENDERING FUNCTIONS
+     ========================================================= */
+  function showToast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+
+  function syncGalleryCounters() {
+    const txt = `${getUnlockedCount()}/${ENDINGS.length}`;
+    document.getElementById("landing-gallery-count").textContent = txt;
+    document.getElementById("story-gallery-count").textContent = txt;
+    document.getElementById("report-gallery-count").textContent = txt;
+    document.getElementById("progress-collect-num").textContent = txt;
+  }
+
+  function switchView(viewName) {
+    state.view = viewName;
+    document.getElementById("landing-view").classList.toggle("hidden", viewName !== "landing");
+    document.getElementById("story-view").classList.toggle("hidden", viewName !== "story");
+    document.getElementById("report-view").classList.toggle("hidden", viewName !== "report");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function startNewJourney() {
+    state.chapterIdx = 0;
+    state.phase = "choice";
+    state.stats = { curiosity: 15, kindness: 15, warmth: 15, vision: 15 };
+    state.memories = [];
+    state.currentReflection = null;
+    state.currentEnding = null;
+
+    if (!AudioEngine.isOn()) {
+      AudioEngine.start();
+    } else {
+      AudioEngine.sfxClick();
+    }
+
+    switchView("story");
+    renderChapter();
+  }
+
+  function renderChapter() {
+    const ch = CHAPTERS[state.chapterIdx];
+    document.body.className = ch.mood;
+
+    // Top bar
+    document.getElementById("topbar-meta").textContent = `第 ${ch.id}/${CHAPTERS.length} 幕 · ${ch.grade} · ${ch.atmosphere}`;
+    document.getElementById("topbar-age").textContent = ch.age;
+    document.getElementById("progress-stage-tip").textContent = ch.stageTip;
+    const pct = ((state.chapterIdx + 1) / CHAPTERS.length) * 100;
+    document.getElementById("progress-fill").style.width = `${pct}%`;
+
+    // Re-trigger gentle animation on story card
+    const card = document.getElementById("story-card");
+    card.style.animation = "none";
+    void card.offsetWidth;
+    card.style.animation = "";
+
+    // Scene art & narrative
+    document.getElementById("scene-art").innerHTML = renderSceneArt(ch.sceneKey, state.gender, ch.age);
+    document.getElementById("scene-age-tag").textContent = `${ch.age} 岁 · ${ch.grade}`;
+    document.getElementById("scene-title").textContent = ch.title;
+    document.getElementById("scene-narrative").textContent = ch.narrative;
+
+    renderChoiceColumn();
+  }
+
+  function renderChoiceColumn() {
+    const ch = CHAPTERS[state.chapterIdx];
+    const col = document.getElementById("choice-column");
+
+    if (state.phase === "choice") {
+      col.innerHTML = `
+        <div class="choice-prompt">
+          <span>这一刻，你会顺着自己的心意怎么选？</span>
+          <span style="font-size:12px;color:var(--text-muted);">可按 A-D / 1-4</span>
+        </div>
+        <div class="choice-list">
+          ${ch.choices.map((c, idx) => `
+            <button class="choice-btn" data-choice-idx="${idx}">
+              <span class="choice-letter">${c.label}</span>
+              <span class="choice-text">${c.text}</span>
+            </button>
+          `).join("")}
+        </div>
+      `;
+
+      col.querySelectorAll(".choice-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          handleChoice(Number(btn.dataset.choiceIdx));
+        });
+      });
+    } else {
+      const ref = state.currentReflection;
+      const isLast = state.chapterIdx === CHAPTERS.length - 1;
+
+      const rippleChips = Object.entries(ref.choice.stats).map(([k, v]) => {
+        const m = STAT_META[k];
+        return `<span class="ripple-chip" style="color:${m.color};">✦ ${m.name} 微微亮起</span>`;
+      }).join("");
+
+      const blessingHtml = ref.blessing ? `
+        <div class="random-butterfly-box">
+          <strong>${ref.blessing.title}</strong>
+          <div>${ref.blessing.text}（${STAT_META[ref.blessing.stat].name} +${ref.blessing.bonus}）</div>
+        </div>
+      ` : "";
+
+      col.innerHTML = `
+        <div class="reflection-panel">
+          <div class="reflection-header">
+            <span>🦋</span>
+            <span>蝴蝶轻语 · 第 ${ch.id} 幕回响</span>
+          </div>
+          <div class="reflection-chosen">你的决定：${ref.choice.text}</div>
+          <div class="reflection-outcome">${ref.choice.outcome}</div>
+          <div class="seed-pill">🌱 埋下成长种子：${ch.age}岁 · ${ref.choice.tag}</div>
+          <div class="stat-ripples">${rippleChips}</div>
+          ${blessingHtml}
+          <button class="primary-btn" id="next-chapter-btn" style="margin-top:6px;width:100%;">
+            <span>${isLast ? "✨ 揭晓 26 岁成长轨迹报告" : "继续成长之旅 →"}</span>
+          </button>
+        </div>
+      `;
+
+      document.getElementById("next-chapter-btn").addEventListener("click", advanceChapter);
+    }
+  }
+
+  function handleChoice(choiceIdx) {
+    const ch = CHAPTERS[state.chapterIdx];
+    const choice = ch.choices[choiceIdx];
+    if (!choice) return;
+
+    AudioEngine.sfxClick();
+
+    // Apply stats
+    for (const [k, v] of Object.entries(choice.stats)) {
+      state.stats[k] = (state.stats[k] || 0) + v;
+    }
+
+    // Random Butterfly Blessing (~28% chance on chapters 2..8)
+    let blessing = null;
+    if (state.chapterIdx >= 1 && state.chapterIdx <= 7 && Math.random() < 0.28) {
+      blessing = BUTTERFLY_BLESSINGS[Math.floor(Math.random() * BUTTERFLY_BLESSINGS.length)];
+      state.stats[blessing.stat] += blessing.bonus;
+      AudioEngine.sfxButterfly();
+    }
+
+    const primaryStat = Object.entries(choice.stats).sort((a, b) => b[1] - a[1])[0][0];
+
+    state.memories.push({
+      age: ch.age,
+      tag: choice.tag,
+      action: choice.action,
+      causalHint: choice.causalHint,
+      primaryStat,
+      stats: choice.stats,
+      blessing
+    });
+
+    state.currentReflection = { choice, blessing };
+    state.phase = "reflection";
+    renderChoiceColumn();
+  }
+
+  function advanceChapter() {
+    AudioEngine.sfxClick();
+    if (state.chapterIdx < CHAPTERS.length - 1) {
+      state.chapterIdx++;
+      state.phase = "choice";
+      state.currentReflection = null;
+      renderChapter();
+    } else {
+      finishJourney();
+    }
+  }
+
+  function finishJourney() {
+    const ending = computeEnding(state.stats);
+    state.currentEnding = ending;
+
+    const isFirstUnlock = !state.unlocked[ending.id];
+    state.unlocked[ending.id] = {
+      unlockedAt: new Date().toLocaleDateString("zh-CN"),
+      gender: state.gender
+    };
+    saveUnlocked();
+    syncGalleryCounters();
+
+    AudioEngine.sfxEnding();
+    document.body.className = "mood-sakura";
+    switchView("report");
+    renderReport(ending, isFirstUnlock);
+  }
+
+  function renderReport(ending, isFirstUnlock) {
+    document.getElementById("report-emblem").innerHTML = renderEndingEmblem(ending.id, 114);
+    document.getElementById("report-eyebrow").textContent = `26岁成长轨迹报告 · ${ending.subtitle}`;
+    const titleEl = document.getElementById("report-title");
+    titleEl.textContent = ending.title;
+    titleEl.style.color = ending.color;
+
+    document.getElementById("report-tagline").textContent = ending.tagline;
+    document.getElementById("report-epilogue").textContent = ending.epilogue;
+
+    const quoteBox = document.getElementById("report-quote-box");
+    quoteBox.style.background = ending.quoteBg;
+    quoteBox.style.borderColor = `${ending.color}33`;
+    document.getElementById("report-quote-text").textContent = ending.quote;
+
+    // 4-Dimension Stat Bars
+    const maxScore = Math.max(105, ...Object.values(state.stats));
+    const statList = document.getElementById("report-stat-list");
+    statList.innerHTML = Object.entries(STAT_META).map(([key, meta]) => {
+      const val = state.stats[key];
+      const pct = Math.min(100, Math.round((val / maxScore) * 100));
+      return `
+        <div>
+          <div class="stat-row-top">
+            <div class="stat-name-wrap">
+              <span class="stat-name">${meta.name}</span>
+              <span class="stat-hint">${meta.desc}</span>
+            </div>
+            <span class="stat-val" style="color:${meta.color};">${val}</span>
+          </div>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" style="width:${pct}%;background:${meta.color};"></div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Radar Chart
+    document.getElementById("report-radar").innerHTML = renderRadarSvg(state.stats);
+
+    // Pick top 4 pivotal memories aligned with dominant stats
+    const topStats = Object.entries(state.stats).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    const scoredMemories = state.memories.map((m, i) => ({
+      ...m,
+      idx: i,
+      weight: (m.primaryStat === topStats[0] ? 3 : m.primaryStat === topStats[1] ? 2 : 1) + (m.blessing ? 1.5 : 0)
+    }));
+
+    const selected = scoredMemories
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 4)
+      .sort((a, b) => a.age - b.age);
+
+    const timeline = document.getElementById("report-timeline");
+    timeline.innerHTML = selected.map(m => `
+      <div class="timeline-item">
+        <div class="timeline-meta">${m.age} 岁 · ${m.tag}</div>
+        <div class="timeline-action">${m.action}</div>
+        <div class="timeline-desc">${m.causalHint}（这些微小的足迹一起指向了「${ending.title}」）</div>
+      </div>
+    `).join("");
+
+    if (isFirstUnlock) {
+      showToast(`🎉 解锁全新结局图鉴：「${ending.title}」(${getUnlockedCount()}/10)`);
+    }
+  }
+
+  /* =========================================================
+     9. EXPORT HIGH-RES GROWTH POSTCARD (CANVAS -> PNG)
+     ========================================================= */
+  function downloadPostcard() {
+    const ending = state.currentEnding;
+    if (!ending) return;
+
+    const c = document.createElement("canvas");
+    c.width = 960;
+    c.height = 1280;
+    const ctx = c.getContext("2d");
+
+    // Background gradient
+    const bg = ctx.createLinearGradient(0, 0, 960, 1280);
+    bg.addColorStop(0, "#fff5ea");
+    bg.addColorStop(0.5, "#fffcf7");
+    bg.addColorStop(1, "#eaf3ff");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 960, 1280);
+
+    // Card frame
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, 56, 56, 848, 1168, 36);
+    ctx.fill();
+    ctx.strokeStyle = "#ead9c7";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Header tag
+    ctx.fillStyle = "#d98324";
+    ctx.font = "700 24px 'Noto Sans SC', sans-serif";
+    ctx.fillText("✦ 小小蝴蝶：我的成长轨迹 · 26岁纪念明信片", 104, 132);
+
+    // Title
+    ctx.fillStyle = ending.color;
+    ctx.font = "800 58px 'Noto Sans SC', sans-serif";
+    ctx.fillText(ending.title, 104, 218);
+
+    // Tagline
+    ctx.fillStyle = "#2d2622";
+    ctx.font = "700 28px 'Noto Sans SC', sans-serif";
+    ctx.fillText(ending.tagline, 104, 272);
+
+    // Epilogue wrapped
+    ctx.fillStyle = "#514740";
+    ctx.font = "400 24px 'Noto Sans SC', sans-serif";
+    let y = wrapText(ctx, ending.epilogue, 104, 336, 750, 42);
+
+    // Quote Box
+    y += 28;
+    ctx.fillStyle = ending.quoteBg;
+    roundRect(ctx, 104, y, 752, 130, 20);
+    ctx.fill();
+    ctx.fillStyle = "#7a6f67";
+    ctx.font = "700 20px 'Noto Sans SC', sans-serif";
+    ctx.fillText("成长随笔", 132, y + 40);
+    ctx.fillStyle = "#28303d";
+    ctx.font = "700 24px 'Noto Serif SC', Georgia, serif";
+    wrapText(ctx, ending.quote, 132, y + 80, 696, 36);
+
+    // Stats Section
+    y += 186;
+    ctx.fillStyle = "#2d2622";
+    ctx.font = "800 28px 'Noto Sans SC', sans-serif";
+    ctx.fillText("四维人生态度能量", 104, y);
+
+    const maxScore = Math.max(105, ...Object.values(state.stats));
+    y += 44;
+    for (const [k, meta] of Object.entries(STAT_META)) {
+      const val = state.stats[k];
+      ctx.fillStyle = "#3a312b";
+      ctx.font = "700 22px 'Noto Sans SC', sans-serif";
+      ctx.fillText(`${meta.name} (${meta.desc})`, 104, y);
+      ctx.fillStyle = meta.color;
+      ctx.textAlign = "right";
+      ctx.fillText(String(val), 856, y);
+      ctx.textAlign = "left";
+
+      ctx.fillStyle = "#f0e7dc";
+      roundRect(ctx, 104, y + 14, 752, 16, 8);
+      ctx.fill();
+      ctx.fillStyle = meta.color;
+      roundRect(ctx, 104, y + 14, Math.max(24, (val / maxScore) * 752), 16, 8);
+      ctx.fill();
+      y += 72;
+    }
+
+    // Footer
+    ctx.fillStyle = "#8d7f74";
+    ctx.font = "500 20px 'Noto Sans SC', sans-serif";
+    ctx.fillText(`🦋 10岁到26岁 · 那些微小决定，终在时间里长出翅膀   |   图鉴进度 ${getUnlockedCount()}/10`, 104, 1176);
+
+    const link = document.createElement("a");
+    link.download = `小小蝴蝶_26岁成长明信片_${ending.title}.png`;
+    link.href = c.toDataURL("image/png");
+    link.click();
+    showToast("📸 成长明信片已保存到本地！");
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    let line = "";
+    for (const ch of text) {
+      const test = line + ch;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, y);
+        line = ch;
+        y += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    if (line) {
+      ctx.fillText(line, x, y);
+      y += lineHeight;
+    }
+    return y;
+  }
+
+  /* =========================================================
+     10. ENDING GALLERY MODAL
+     ========================================================= */
+  function openGallery() {
+    state.previewEndingId = null;
+    renderGalleryContent();
+    const modal = document.getElementById("gallery-modal");
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeGallery() {
+    const modal = document.getElementById("gallery-modal");
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function renderGalleryContent() {
+    const count = getUnlockedCount();
+    document.getElementById("modal-subtitle").textContent =
+      `已点亮 ${count}/${ENDINGS.length} 种人生风景 · 点击已解锁结局可重温完整随笔`;
+
+    const previewArea = document.getElementById("gallery-preview-area");
+    if (state.previewEndingId) {
+      const e = ENDINGS.find(x => x.id === state.previewEndingId);
+      previewArea.innerHTML = e ? `
+        <div class="gallery-detail-preview">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <strong style="font-size:18px;color:${e.color};">✦ ${e.title} · ${e.tagline}</strong>
+            <button class="text-link-btn" id="close-preview-btn">收起</button>
+          </div>
+          <p style="font-size:14px;line-height:1.8;color:#4a403a;margin-bottom:10px;">${e.epilogue}</p>
+          <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:#7a4b15;">“${e.quote}”</div>
+        </div>
+      ` : "";
+      const closeBtn = document.getElementById("close-preview-btn");
+      if (closeBtn) closeBtn.addEventListener("click", () => {
+        state.previewEndingId = null;
+        renderGalleryContent();
+      });
+    } else {
+      previewArea.innerHTML = "";
+    }
+
+    const grid = document.getElementById("gallery-grid");
+    grid.innerHTML = ENDINGS.map((e, idx) => {
+      const info = state.unlocked[e.id];
+      const unlocked = Boolean(info);
+      return `
+        <div class="gallery-item ${unlocked ? "unlocked" : "locked"}" data-ending-id="${e.id}">
+          <div class="gallery-mini-emblem">
+            ${unlocked
+              ? renderEndingEmblem(e.id, 54)
+              : `<span style="font-size:24px;opacity:0.45;">🦋</span>`
+            }
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div class="gallery-item-title" style="color:${unlocked ? e.color : "#756a62"};">
+              <span>${unlocked ? e.title : `结局 #${idx + 1} · 待遇见`}</span>
+              <span class="status-badge ${unlocked ? "done" : "lock"}">${unlocked ? "已点亮" : "未解锁"}</span>
+            </div>
+            <div class="gallery-item-desc">
+              ${unlocked
+                ? `${e.tagline}<div style="margin-top:4px;font-size:11.5px;color:#9b8e83;">解锁日期：${info.unlockedAt}</div>`
+                : `解锁线索：${e.clue}`
+              }
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    grid.querySelectorAll(".gallery-item.unlocked").forEach(item => {
+      item.addEventListener("click", () => {
+        state.previewEndingId = item.dataset.endingId;
+        AudioEngine.sfxClick();
+        renderGalleryContent();
+      });
+    });
+  }
+
+  /* =========================================================
+     11. EVENT BINDINGS & KEYBOARD SHORTCUTS
+     ========================================================= */
+  function bindEvents() {
+    // Gender Switch
+    document.querySelectorAll(".gender-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.gender = btn.dataset.gender;
+        document.querySelectorAll(".gender-btn").forEach(b => b.classList.toggle("active", b === btn));
+        renderLandingHeroArt(state.gender);
+        AudioEngine.sfxClick();
+      });
+    });
+
+    // Primary Start / Restart
+    document.getElementById("start-btn").addEventListener("click", startNewJourney);
+    document.getElementById("restart-btn").addEventListener("click", () => {
+      AudioEngine.sfxClick();
+      document.body.className = "mood-sakura";
+      switchView("landing");
+    });
+
+    // Home Button during Story
+    document.getElementById("story-home-btn").addEventListener("click", () => {
+      if (confirm("要返回首页重新开始旅程吗？（当前进度不会被保存，但已解锁的图鉴会保留）")) {
+        document.body.className = "mood-sakura";
+        switchView("landing");
+      }
+    });
+
+    // Audio toggles
+    document.getElementById("landing-audio-btn").addEventListener("click", () => AudioEngine.toggle());
+    document.getElementById("story-audio-btn").addEventListener("click", () => AudioEngine.toggle());
+
+    // Gallery buttons
+    ["landing-gallery-btn", "story-gallery-btn", "report-gallery-btn", "report-clues-btn"].forEach(id => {
+      document.getElementById(id).addEventListener("click", () => {
+        AudioEngine.sfxClick();
+        openGallery();
+      });
+    });
+
+    document.getElementById("modal-close-btn").addEventListener("click", closeGallery);
+    document.getElementById("gallery-modal").addEventListener("click", e => {
+      if (e.target.id === "gallery-modal") closeGallery();
+    });
+
+    document.getElementById("reset-gallery-btn").addEventListener("click", () => {
+      if (confirm("确定要清空本地所有已收集的结局图鉴吗？")) {
+        state.unlocked = {};
+        saveUnlocked();
+        syncGalleryCounters();
+        state.previewEndingId = null;
+        renderGalleryContent();
+        showToast("已重置结局图鉴记录");
+      }
+    });
+
+    // Download Postcard
+    document.getElementById("download-card-btn").addEventListener("click", downloadPostcard);
+
+    // Keyboard Shortcuts
+    window.addEventListener("keydown", e => {
+      const modalOpen = document.getElementById("gallery-modal").classList.contains("open");
+      if (modalOpen) {
+        if (e.key === "Escape") closeGallery();
+        return;
+      }
+
+      if (state.view === "landing" && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        startNewJourney();
+        return;
+      }
+
+      if (state.view === "story") {
+        if (state.phase === "choice") {
+          const map = { "1": 0, "2": 1, "3": 2, "4": 3, "a": 0, "b": 1, "c": 2, "d": 3 };
+          const idx = map[e.key.toLowerCase()];
+          if (idx !== undefined) {
+            e.preventDefault();
+            handleChoice(idx);
+          }
+        } else if (state.phase === "reflection" && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          advanceChapter();
+        }
+      }
+    });
+  }
+
+  /* =========================================================
+     12. BOOTSTRAP
+     ========================================================= */
+  initAmbientCanvas();
+  renderLandingHeroArt(state.gender);
+  syncGalleryCounters();
+  syncAudioButtons();
+  bindEvents();
+})();
+</script>
+</body>
+</html>
+
+如果你还想继续扩展的方向
+
+  - 替换成 AI 绘本原画：代码中的 renderLandingHeroArt() 和 renderSceneArt()
+    结构非常清晰，如果你有自己生成好的 10 幕日系原画（男生版/女生版）或结局插画，只需把对应位置的 SVG 替换成 <img src="...">
+    即可无缝升级为画册级视觉。
+  - 更多隐藏支线：可以在 CHAPTERS 数组里自由增加幕数、添加隐藏成就，或调整 BUTTERFLY_BLESSINGS 的随机事件触发概率。
